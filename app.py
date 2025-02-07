@@ -58,8 +58,16 @@ def get_all_associates():
     conn = get_db_connection()
     associates = conn.execute('''
         SELECT DISTINCT sales_associate 
-        FROM somm_scores 
-        WHERE sales_associate IS NOT NULL 
+        FROM (
+            SELECT sales_associate FROM orders 
+            WHERE sales_associate IS NOT NULL
+            UNION
+            SELECT sales_associate FROM clubs
+            WHERE sales_associate IS NOT NULL
+            UNION
+            SELECT sales_associate FROM somm_scores
+            WHERE sales_associate IS NOT NULL
+        )
         ORDER BY sales_associate
     ''').fetchall()
     conn.close()
@@ -368,6 +376,16 @@ def process_setup(year_type, start_date, progress_dict):
             datetime.now().strftime('%Y-%m-%d')
         )
         logger.info(f"Current period clubs added: {current_clubs}")
+        
+        # Get all associates and set them as active
+        progress_dict['status'] = 'setting_active_associates'
+        progress_dict['message'] = 'Setting up active associates...'
+        
+        all_associates = get_all_associates()
+        if all_associates:
+            conn.execute("UPDATE settings SET value = ? WHERE key = 'active_associates'", 
+                        (json.dumps(all_associates),))
+            logger.info(f"Set active associates: {all_associates}")
         
         progress_dict['status'] = 'generating_reference'
         progress_dict['message'] = 'Generating reference data...'
