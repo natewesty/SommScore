@@ -1,0 +1,50 @@
+.rank-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.badge-container {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 40%;
+    align-items: flex-end;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    background-color: var(--badge-bg);
+    color: var(--badge-text);
+}
+
+.rank-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    padding-right: calc(40% + 1rem); /* Make space for badges */
+}
+
+.score-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    padding-right: calc(40% + 1rem); /* Make space for badges */
+} 

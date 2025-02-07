@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SommScore - Behind the Numbers</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .help-content .metric-section h3 {
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-top: 1.5rem;
+            font-size: 1.1rem;
+        }
+
+        [data-theme='dark'] .help-content .metric-section h3 {
+            color: #000000;
+        }
+
+        .sample-card {
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin: 1rem 0;
+            max-width: 400px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+            overflow: visible;
+        }
+
+        .sample-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .sample-badges {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            z-index: 1;
+            max-width: 50%;
+        }
+
+        .sample-badge {
+            font-size: 0.7rem;
+            padding: 0.35rem 0.6rem;
+            border-radius: 1rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transform: rotate(3deg);
+            transition: transform 0.2s;
+            white-space: nowrap;
+        }
+
+        .sample-badge:hover {
+            transform: rotate(0deg) scale(1.05);
+        }
+
+        .sample-badge:first-child {
+            background: linear-gradient(135deg, #34d399, #059669);
+            color: white;
+            z-index: 2;
+        }
+
+        .sample-badge:last-child {
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            color: white;
+            z-index: 3;
+        }
+
+        .sample-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sample-rank {
+            font-size: 1.2rem;
+            width: 28px;
+            height: 28px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+        }
+
+        .sample-name {
+            flex: 1;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .sample-score {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0.75rem;
+            padding-top: 0.75rem;
+        }
+
+        .sample-avg {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .sample-diff {
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            background: var(--background-color);
+            color: #16a34a;
+        }
+
+        .sample-days {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-style: italic;
+            opacity: 0.8;
+            font-weight: 500;
+        }
+
+        .explanation-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 1rem 0;
+        }
+
+        .explanation-list li {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .explanation-list li::before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Behind the Numbers</h1>
+            <p class="subtitle">Your Guide to Understanding the Magic ✨</p>
+            <a href="{{ url_for('index') }}" class="back-link">← Back to Dashboard</a>
+        </header>
+
+        <div class="help-content">
+            <div class="metric-section">
+                <h2>📊 Understanding SommScore</h2>
+                <p>Your SommScore is a daily performance metric that measures how well you're doing compared to your team's performance each day. It's calculated on a 0-100 scale, combining your sales performance and club signup achievements.</p>
+
+                <h2>✨ How It's Calculated</h2>
+                <p>Your daily score is determined by three key factors:</p>
+                <ul>
+                    <li><strong>Sales Performance:</strong> How your daily sales compare to the team's average
+                        <ul>
+                            <li>If you're above the team average, your score increases</li>
+                            <li>If you're below the team average, your score decreases</li>
+                        </ul>
+                    </li>
+                    <li><strong>Club Signups:</strong> Each club signup adds 50 points to your daily score</li>
+                    <li><strong>Day Weights:</strong> Different days have different importance:
+                        <ul>
+                            <li>Weekdays (Monday-Thursday): 1.5x weight</li>
+                            <li>Weekends (Friday-Sunday): 1.0x weight</li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <h2>🏆 Performance Badges</h2>
+                <p>These badges showcase your achievements in three key areas:</p>
+                <ul>
+                    <li>Tips Leader: Outstanding customer satisfaction</li>
+                    <li>Sales Leader: Top total value sold</li>
+                    <li>Club Leader: Excellence in membership growth</li>
+                </ul>
+
+                <h2>📈 Team Performance Grade</h2>
+                <p>The team's overall grade combines three elements:</p>
+                <ul>
+                    <li>40% - Average team SommScore</li>
+                    <li>40% - Sales performance</li>
+                    <li>20% - Club signups</li>
+                </ul>
+
+                <h2>Individual Statistics</h2>
+                <p>Your personal dashboard shows:</p>
+                <ul>
+                    <li>Average Score: Your overall performance metric</li>
+                    <li>Top Performer Rate: How often you lead the pack</li>
+                    <li>High Performance Days: Your scores above 75</li>
+                    <li>Recent Averages: 7-day and month-to-date metrics</li>
+                    <li>Team Contribution: Your impact on overall progress towards team goals</li>
+                </ul>
+
+                <h2>💡 Keys to Success</h2>
+                <p>Want to take that trophy for yourself? Focus on:</p>
+                <ul>
+                    <li>Quality customer interactions - every guest counts towards your score</li>
+                    <li>Strategic club membership growth - club signups give you a boost</li>
+                    <li>Consistent daily performance - too many bad days in a row will drop your score quickly</li>
+                    <li>Contributing to team success - your team's average score raises your overall value</li>
+                </ul>
+            </div>
+
+            <div class="metric-section">
+                <h2>📊 Your SommScore Card</h2>
+                <p>Here's a detailed breakdown of what you see on your performance card:</p>
+                
+                <div class="sample-card">
+                    <div class="sample-badges">
+                        <span class="sample-badge">💰 Monthly Tips</span>
+                        <span class="sample-badge">🎯 Weekly Clubs</span>
+                    </div>
+                    <div class="sample-header">
+                        <span class="sample-rank">🏆</span>
+                        <span class="sample-name">Jerry Garcia</span>
+                    </div>
+                    <div class="sample-score">
+                        <span class="sample-avg">85.5
+                            <span class="sample-diff">+12.3</span>
+                            <span class="sample-days">(24)</span>
+                        </span>
+                    </div>
+                </div>
+
+                <ul class="explanation-list">
+                    <li><strong>Achievement Badges:</strong> Shows your current achievements. In this example, the associate leads in Monthly Tips and Weekly Club signups.</li>
+                    <li><strong>Rank Symbol:</strong> 🏆 for 1st, 🥈 for 2nd, 🥉 for 3rd, or numerical rank for others.</li>
+                    <li><strong>Main Score (85.5):</strong> Your average SommScore for the current period, combining sales performance, club signups, and tips.</li>
+                    <li><strong>Score Difference (+12.3):</strong> How your score compares to the team average. Green indicates above average, red would indicate below.</li>
+                    <li><strong>Days Count (24):</strong> The number of days you've worked in the current period.</li>
+                </ul>
+
+                <p><strong>Pro Tip:</strong> Click on your name to see detailed statistics including your 7-day average, month-to-date performance, and contribution percentages to team totals.</p>
+            </div>
+
+            <div class="metric-section">
+                <h2>📈 Performance Metrics</h2>
+                <h3>Daily Score Calculation</h3>
+                <p>Your daily score is calculated in these steps:</p>
+                <ol>
+                    <li>Calculate team's average revenue for the day</li>
+                    <li>Compare your revenue to team average:
+                        <div class="formula">
+                            Revenue Score = ((Your Revenue - Team Average) / Team Average) × 50
+                        </div>
+                    </li>
+                    <li>Apply day weight (1.5x for Mon-Thu, 1.0x for Fri-Sun)</li>
+                    <li>Add club signup bonuses (50 points each)</li>
+                    <li>Normalize to 0-100 scale relative to team performance</li>
+                </ol>
+
+                <h3>Average Score</h3>
+                <p>Your overall performance indicator:</p>
+                <div class="formula">
+                    Average Score = Sum of Daily Scores ÷ Days Worked
+                </div>
+
+                <h3>Top Performer Percentage</h3>
+                <p>How often you've achieved the highest daily score:</p>
+                <div class="formula">
+                    Top Performer % = (Days as #1 ÷ Total Days) × 100
+                </div>
+
+                <h3>Days Above 75</h3>
+                <p>Count of exceptional performance days (scoring 75+ points)</p>
+
+                <h3>Club Signups Percentage</h3>
+                <p>Your contribution to total club growth:</p>
+                <div class="formula">
+                    Club Signup % = (Your Signups ÷ Total Team Signups) × 100
+                </div>
+
+                <h3>Sales Volume Percentage</h3>
+                <p>Your contribution to total team sales:</p>
+                <div class="formula">
+                    Sales Volume % = (Your Sales ÷ Team Total Sales) × 100
+                </div>
+            </div>
+
+            <div class="metric-section">
+                <h2>⏱️ Time Period Views</h2>
+                <p>Different ways to analyze performance:</p>
+                <ul>
+                    <li><strong>7-Day View:</strong> Recent performance trends</li>
+                    <li><strong>14-Day View:</strong> Extended short-term analysis</li>
+                    <li><strong>Month-to-Date:</strong> Current month's progress</li>
+                    <li><strong>Quarter-to-Date:</strong> Current quarter performance</li>
+                    <li><strong>Year-to-Date:</strong> Progress since the start of the year</li>
+                </ul>
+                <p>Note: Time periods adjust automatically based on fiscal or calendar year settings.</p>
+            </div>
+
+            <div class="metric-section">
+                <h2>📅 Year Types</h2>
+                <p>Two ways to track annual performance:</p>
+                <ul>
+                    <li><strong>Calendar Year:</strong> January 1 - December 31</li>
+                    <li><strong>Fiscal Year:</strong> Customizable 12-month period (e.g., July 1 - June 30)</li>
+                </ul>
+            </div>
+
+            <div class="metric-section">
+                <h2>📊 Trend Analysis</h2>
+                <p>View performance data in different formats:</p>
+                <ul>
+                    <li><strong>Daily Scores:</strong> Individual day-by-day performance</li>
+                    <li><strong>Cumulative Average:</strong> Running average that shows long-term trends</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function applyTheme() {
+            const darkMode = '{{ dark_mode }}' === 'true';
+            document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+        }
+        
+        // Apply theme immediately
+        applyTheme();
+    </script>
+</body>
+</html> 

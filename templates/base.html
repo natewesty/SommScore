@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SommScore</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="dropdown">
+        <button class="dropdown-button" id="menuButton" onclick="toggleDropdown(event)">☰</button>
+        <div class="dropdown-content" id="dropdownMenu">
+            <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>Home</a>
+            <a href="{{ url_for('trends') }}" {% if request.endpoint == 'trends' %}class="active"{% endif %}>Trends</a>
+            <a href="{{ url_for('help') }}" {% if request.endpoint == 'help' %}class="active"{% endif %}>Help</a>
+            <a href="{{ url_for('settings') }}" {% if request.endpoint == 'settings' %}class="active"{% endif %}>Settings</a>
+        </div>
+    </div>
+
+    {% block content %}{% endblock %}
+
+    <script>
+    function applyTheme() {
+        const darkMode = '{{ dark_mode }}' === 'true';
+        document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    }
+    
+    // Apply theme immediately
+    applyTheme();
+
+    let isMenuOpen = false;
+
+    // Dropdown menu functionality
+    function toggleDropdown(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const dropdownContent = document.getElementById('dropdownMenu');
+        const button = document.getElementById('menuButton');
+        
+        isMenuOpen = !isMenuOpen;
+        
+        if (isMenuOpen) {
+            dropdownContent.classList.add('show');
+            button.classList.add('active');
+        } else {
+            dropdownContent.classList.remove('show');
+            button.classList.remove('active');
+        }
+    }
+
+    // Handle clicks outside the menu
+    document.addEventListener('click', function(event) {
+        if (!event.target.closest('.dropdown')) {
+            const dropdownContent = document.getElementById('dropdownMenu');
+            const button = document.getElementById('menuButton');
+            dropdownContent.classList.remove('show');
+            button.classList.remove('active');
+            isMenuOpen = false;
+        }
+    });
+
+    // Prevent menu from closing when clicking inside dropdown content
+    document.getElementById('dropdownMenu').addEventListener('click', function(event) {
+        event.stopPropagation();
+    });
+    </script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html> 

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SommScore Setup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .setup-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .setup-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .setup-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .form-group label {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .form-group input {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+        .error-message {
+            color: #dc2626;
+            margin-top: 10px;
+            text-align: center;
+        }
+        .help-text {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Loading overlay styles */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .loading-content {
+            text-align: center;
+            color: white;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        .loading-text {
+            font-size: 1.2em;
+            margin-top: 20px;
+        }
+
+        .loading-progress {
+            width: 300px;
+            margin-top: 20px;
+            text-align: center;
+            color: #3498db;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Setting up SommScore</div>
+            <div id="loadingProgress" class="loading-progress">Initializing...</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>Welcome to SommScore</h1>
+            <p class="subtitle">Let's get you started with initial setup</p>
+        </header>
+
+        <div class="settings-card card">
+            {% if error %}
+            <div class="error-message">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form method="POST" class="setup-form">
+                <div class="settings-section">
+                    <h2>Year Type</h2>
+                    <p class="section-description">Choose between calendar year or fiscal year for calculations.</p>
+                    
+                    <div class="year-type-options">
+                        <label class="radio-option">
+                            <input type="radio" name="year_type" value="calendar" 
+                                   checked
+                                   onchange="toggleFiscalDates(false)">
+                            <span>Calendar Year</span>
+                            <div class="help-text">
+                                Data will be collected starting from January 1st of the current year
+                            </div>
+                        </label>
+                        
+                        <div class="fiscal-option">
+                            <label class="radio-option">
+                                <input type="radio" name="year_type" value="fiscal" 
+                                       onchange="toggleFiscalDates(true)">
+                                <span>Fiscal Year</span>
+                            </label>
+                            
+                            <div class="fiscal-dates" id="fiscalDates" style="display: none;">
+                                <div class="date-picker-group">
+                                    <label class="date-label">
+                                        Fiscal Year Start:
+                                        <input type="date" name="fiscal_start" 
+                                               class="date-input">
+                                    </label>
+                                    <div class="help-text">
+                                        Choose the date your fiscal year begins. Data collection will start from this date.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-actions">
+                    <button type="submit" class="save-button">Start Using SommScore</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    // Set default theme to dark
+    document.documentElement.setAttribute('data-theme', 'dark');
+
+    // Function to set default fiscal dates
+    function setDefaultFiscalDates() {
+        const startInput = document.querySelector('input[name="fiscal_start"]');
+        const currentYear = new Date().getFullYear();
+        const currentMonth = new Date().getMonth() + 1; // 0-based month
+        
+        // If we're past July 1st of the current year, use current year, otherwise use previous year
+        const fiscalYear = currentMonth >= 7 ? currentYear : currentYear - 1;
+        startInput.value = `${fiscalYear}-07-01`;
+        
+        // Set min and max dates to restrict selection
+        startInput.min = `${fiscalYear-1}-07-01`;
+        startInput.max = `${fiscalYear+1}-07-01`;
+    }
+
+    function toggleFiscalDates(show) {
+        const fiscalDates = document.getElementById('fiscalDates');
+        if (show) {
+            fiscalDates.style.display = 'block';
+            setDefaultFiscalDates();
+        } else {
+            fiscalDates.style.display = 'none';
+        }
+    }
+
+    // Call toggleFiscalDates on page load if fiscal year is selected
+    document.addEventListener('DOMContentLoaded', function() {
+        const fiscalRadio = document.querySelector('input[name="year_type"][value="fiscal"]');
+        if (fiscalRadio.checked) {
+            toggleFiscalDates(true);
+        }
+    });
+
+    // Add form submission handler
+    document.querySelector('.setup-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const yearType = document.querySelector('input[name="year_type"]:checked').value;
+        if (yearType === 'fiscal') {
+            const startInput = document.querySelector('input[name="fiscal_start"]');
+            if (!startInput.value) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = 'Please select a fiscal year start date.';
+                this.insertBefore(errorDiv, this.firstChild);
+                return;
+            }
+        }
+        
+        // Show loading overlay
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        const progressElement = document.getElementById('loadingProgress');
+        
+        // Get form data
+        const formData = new FormData(this);
+        
+        try {
+            // Submit setup data
+            const response = await fetch('/setup', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error('Setup failed');
+            }
+            
+            // Start polling for progress
+            const pollProgress = async () => {
+                const progressResponse = await fetch('/setup/progress');
+                const progressData = await progressResponse.json();
+                
+                progressElement.textContent = progressData.message;
+                
+                if (progressData.status === 'complete') {
+                    window.location.href = '/settings';
+                } else if (progressData.status === 'error') {
+                    throw new Error(progressData.message);
+                } else {
+                    setTimeout(pollProgress, 1000);
+                }
+            };
+            
+            await pollProgress();
+            
+        } catch (error) {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = 'An error occurred during setup. Please try again.';
+            this.insertBefore(errorDiv, this.firstChild);
+        }
+    });
+    </script>
+</body>
+</html> 

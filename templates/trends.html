@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<style>
+.trend-container {
+    background: var(--card-background);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    height: calc(100vh - 200px);
+    min-height: 500px;
+    border: 1px solid var(--border-color);
+    display: flex;
+    gap: 2rem;
+}
+
+.chart-controls {
+    width: 300px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border-color);
+    padding-right: 1.5rem;
+    overflow-y: auto;
+}
+
+.chart-container {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+}
+
+#trendChart {
+    height: 100% !important;
+    width: 100% !important;
+}
+
+.control-row {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.duration-selector,
+.metric-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.select-control {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background: var(--card-background);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    cursor: pointer;
+    width: 100%;
+}
+
+.select-control:hover {
+    border-color: var(--primary-color);
+}
+
+.select-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.associate-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: var(--card-background);
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid var(--border-color);
+}
+
+.toggle-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* Switch styles */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
+    margin: 0;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #e5e7eb;
+    transition: .3s;
+    border-radius: 24px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] .slider {
+    background-color: #374151;
+}
+
+input:checked + .slider {
+    background-color: var(--primary-color);
+}
+
+input:checked + .slider:before {
+    transform: translateX(24px);
+}
+
+label {
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <header>
+        <h1>Performance Trends</h1>
+    </header>
+
+    <div class="trend-container">
+        <div class="chart-controls">
+            <div class="control-row">
+                <div class="duration-selector">
+                    <label for="duration">Time Period:</label>
+                    <select id="duration" class="select-control">
+                        <option value="7">Last 7 Days</option>
+                        <option value="14" selected>Last 14 Days</option>
+                        <option value="mtd">Month to Date</option>
+                        <option value="qtd">Quarter to Date</option>
+                        <option value="ytd">Year to Date</option>
+                    </select>
+                </div>
+                <div class="metric-selector">
+                    <label for="metric">Metric:</label>
+                    <select id="metric" class="select-control">
+                        <option value="daily">Daily Score</option>
+                        <option value="cumulative">Year-to-Date Average</option>
+                    </select>
+                </div>
+            </div>
+            <div class="associate-toggles">
+                <label class="toggle-label team-average">
+                    <span class="toggle-name">Team Average</span>
+                    <label class="switch">
+                        <input type="checkbox" id="team-average-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </label>
+                {% for associate in active_associates %}
+                <label class="toggle-label">
+                    <span class="toggle-name">{{ associate }}</span>
+                    <label class="switch">
+                        <input type="checkbox" class="associate-toggle" value="{{ associate }}">
+                        <span class="slider"></span>
+                    </label>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let trendChart;
+const chartColors = JSON.parse('{{ colors|tojson|safe }}');
+
+function updateChart() {
+    const duration = document.getElementById('duration').value;
+    const metric = document.getElementById('metric').value;
+    const selectedAssociates = Array.from(document.querySelectorAll('.associate-toggle:checked'))
+        .map(checkbox => checkbox.value);
+    const showTeamAverage = document.getElementById('team-average-toggle').checked;
+
+    if (selectedAssociates.length === 0 && !showTeamAverage) {
+        // If no associates selected and no team average, show empty chart with grid
+        if (trendChart) {
+            trendChart.destroy();
+        }
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'day',
+                            displayFormats: {
+                                day: 'MMM d'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: metric === 'daily' ? 'Daily Score' : 'Cumulative Average'
+                        },
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: metric === 'daily' ? 'Daily Performance Scores' : 'Cumulative Average Scores',
+                        font: {
+                            size: 16
+                        }
+                    }
+                }
+            }
+        });
+        return;
+    }
+
+    fetch(`/api/trends?duration=${duration}&metric_type=${metric}`)
+        .then(response => response.json())
+        .then(data => {
+            if (trendChart) {
+                trendChart.destroy();
+            }
+
+            const datasets = [];
+
+            // Add team average dataset if selected
+            if (showTeamAverage) {
+                const teamData = data.dates.map((date, index) => {
+                    if (metric === 'daily') {
+                        // For daily scores, calculate average of all associates for each day
+                        const allScores = Object.values(data.trends)
+                            .map(associate => associate[index].score)
+                            .filter(score => score !== null);
+                        return {
+                            x: date,
+                            y: allScores.length > 0 ? allScores.reduce((a, b) => a + b) / allScores.length : null
+                        };
+                    } else {
+                        // For cumulative average, use the cumulative values
+                        const allCumulatives = Object.values(data.trends)
+                            .map(associate => associate[index].cumulative)
+                            .filter(score => score !== null);
+                        return {
+                            x: date,
+                            y: allCumulatives.length > 0 ? allCumulatives.reduce((a, b) => a + b) / allCumulatives.length : null
+                        };
+                    }
+                });
+
+                datasets.push({
+                    label: 'Team Average',
+                    data: teamData,
+                    borderColor: '#64748b',
+                    backgroundColor: '#64748b',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    tension: metric === 'daily' ? 0 : 0.3,
+                    pointRadius: metric === 'daily' ? 4 : 2,
+                    pointHoverRadius: 4,
+                    showLine: metric === 'cumulative',  // Only show lines for cumulative
+                    order: -1  // Ensure team average is drawn first (behind other lines)
+                });
+            }
+
+            // Add individual associate datasets
+            datasets.push(...selectedAssociates.map((associate, index) => {
+                const associateData = data.trends[associate];
+                return {
+                    label: associate,
+                    data: associateData.map(d => ({
+                        x: d.date,
+                        y: metric === 'daily' ? d.score : d.cumulative
+                    })),
+                    borderColor: chartColors[index % chartColors.length],
+                    backgroundColor: chartColors[index % chartColors.length],
+                    tension: metric === 'daily' ? 0 : 0.3,
+                    pointRadius: metric === 'daily' ? 4 : 2,
+                    pointHoverRadius: 6,
+                    showLine: metric === 'cumulative',  // Only show lines for cumulative
+                    spanGaps: true,  // Always connect gaps when lines are shown
+                    borderWidth: 2
+                };
+            }));
+
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                displayFormats: {
+                                    day: 'MMM d'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: metric === 'daily' ? 'Daily Score' : 'Cumulative Average'
+                            },
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: metric === 'daily' ? 'Daily Performance Scores' : 'Year-to-Date Average Scores',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const score = context.parsed.y;
+                                    if (score === null) return context.dataset.label + ': No Data';
+                                    const label = context.dataset.label;
+                                    const value = score.toFixed(1);
+                                    if (metric === 'daily') {
+                                        return `${label}: ${value} (Daily Score)`;
+                                    } else {
+                                        return `${label}: ${value} (YTD Average)`;
+                                    }
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+}
+
+// Event listeners
+document.getElementById('duration').addEventListener('change', updateChart);
+document.getElementById('metric').addEventListener('change', updateChart);
+document.getElementById('team-average-toggle').addEventListener('change', updateChart);
+document.querySelectorAll('.associate-toggle').forEach(toggle => {
+    toggle.addEventListener('change', updateChart);
+});
+
+// Initial chart load
+updateChart();
+</script>
+{% endblock %}

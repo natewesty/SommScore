@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SommScore Settings</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SommScore Settings</h1>
+        </header>
+
+        <!-- Settings Card -->
+        <div class="settings-card card">
+            <h2 class="card-title">Settings</h2>
+            <form method="POST" action="{{ url_for('settings') }}">
+                <div class="settings-section">
+                    <h3>Active Associates</h3>
+                    <p class="section-description">Select which associates to display on the dashboard.</p>
+                    
+                    <div class="associates-grid">
+                        {% for associate in all_associates %}
+                        <div class="control-card">
+                            <div class="control-content">
+                                <div class="control-info">
+                                    <h3>{{ associate }}</h3>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" name="active_associates" value="{{ associate }}"
+                                           {% if associate in active_associates %}checked{% endif %}>
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Year Type</h3>
+                    <p class="section-description">Choose between calendar year or fiscal year for calculations.</p>
+                    
+                    <div class="year-type-options">
+                        <label class="radio-option">
+                            <input type="radio" name="year_type" value="calendar" 
+                                   {% if year_type == 'calendar' %}checked{% endif %}
+                                   onchange="toggleFiscalDates(false)">
+                            <span>Calendar Year</span>
+                        </label>
+                        
+                        <div class="fiscal-option">
+                            <label class="radio-option">
+                                <input type="radio" name="year_type" value="fiscal" 
+                                       {% if year_type == 'fiscal' %}checked{% endif %}
+                                       onchange="toggleFiscalDates(true)">
+                                <span>Fiscal Year</span>
+                            </label>
+                            
+                            <div class="fiscal-dates" id="fiscalDates" 
+                                 {% if year_type != 'fiscal' %}style="display: none;"{% endif %}>
+                                <div class="date-picker-group">
+                                    <label class="date-label">
+                                        Start:
+                                        <input type="date" name="fiscal_start" 
+                                               value="{{ fiscal_start }}"
+                                               class="date-input">
+                                    </label>
+                                    <label class="date-label">
+                                        End:
+                                        <input type="date" name="fiscal_end" 
+                                               value="{{ fiscal_end }}"
+                                               class="date-input">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Display Options</h3>
+                    <p class="section-description">Customize how information is displayed on the dashboard.</p>
+                    
+                    <div class="display-options-grid">
+                        <div class="control-card">
+                            <div class="control-content">
+                                <div class="control-info">
+                                    <h3>Dark Mode</h3>
+                                    <p>Switch between light and dark theme</p>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" name="dark_mode" {% if dark_mode == 'true' %}checked{% endif %}>
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="control-card">
+                            <div class="control-content">
+                                <div class="control-info">
+                                    <h3>Tip Leader Badges</h3>
+                                    <p>Show badges for top tip earners</p>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" name="show_tip_badges" {% if show_tip_badges == 'true' %}checked{% endif %}>
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-actions">
+                    <button type="submit" class="save-button">Save Settings</button>
+                    <a href="{{ url_for('index') }}" class="cancel-button">Cancel</a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Operations Card -->
+        <div class="settings-card card operations-card">
+            <h2 class="card-title">Operations</h2>
+            <div class="settings-section">
+                <h3>Manual Score Update</h3>
+                <p class="section-description">Run a manual update of SommScores for a specific date range.</p>
+                
+                <div class="control-card">
+                    <div class="control-content">
+                        <div class="manual-update-controls">
+                            <div class="update-field text-center">
+                                <label>Last Update</label>
+                                <div class="date-display">
+                                    <span class="last-update-time">{{ last_update_time }}</span>
+                                </div>
+                            </div>
+                            <form id="manualUpdateForm" onsubmit="handleManualUpdate(event)">
+                                <div class="update-field text-center">
+                                    <label>Start Date</label>
+                                    <input type="date" name="manual_start_date" required class="date-input">
+                                </div>
+                                <div class="update-field">
+                                    <label>&nbsp;</label>
+                                    <button type="submit" class="update-button">Run Update</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function toggleFiscalDates(show) {
+        const fiscalDates = document.getElementById('fiscalDates');
+        if (show) {
+            fiscalDates.style.display = 'block';
+            // If dates aren't set, set them to default values
+            const startInput = document.querySelector('input[name="fiscal_start"]');
+            const endInput = document.querySelector('input[name="fiscal_end"]');
+            if (!startInput.value) {
+                const currentYear = new Date().getFullYear();
+                startInput.value = `${currentYear}-07-01`;
+                endInput.value = `${currentYear + 1}-06-30`;
+            }
+        } else {
+            fiscalDates.style.display = 'none';
+        }
+    }
+
+    // Call toggleFiscalDates on page load if fiscal year is selected
+    document.addEventListener('DOMContentLoaded', function() {
+        const yearTypeRadios = document.querySelectorAll('input[name="year_type"]');
+        yearTypeRadios.forEach(radio => {
+            if (radio.checked && radio.value === 'fiscal') {
+                toggleFiscalDates(true);
+            }
+        });
+    });
+
+    function applyTheme() {
+        const darkMode = '{{ dark_mode }}' === 'true';
+        document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    }
+    
+    function toggleTheme(isDark) {
+        // Apply theme immediately for preview
+        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    }
+    
+    // Apply theme immediately on page load
+    applyTheme();
+    </script>
+    
+    <script>
+    async function handleManualUpdate(event) {
+        event.preventDefault();
+        
+        const form = event.target;
+        const startDate = form.manual_start_date.value;
+        const updateButton = form.querySelector('.update-button');
+        
+        // Disable button and show loading state
+        updateButton.disabled = true;
+        
+        try {
+            const response = await fetch('/manual_update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    start_date: startDate
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                alert(`Update completed successfully! ${result.message}`);
+            } else {
+                alert(`Error: ${result.error}`);
+            }
+        } catch (error) {
+            alert('An error occurred while running the update.');
+            console.error('Update error:', error);
+        } finally {
+            updateButton.disabled = false;
+        }
+    }
+    </script>
+</body>
+</html> 

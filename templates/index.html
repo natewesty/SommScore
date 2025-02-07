@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+    <div id="statsModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modalTitle"></h2>
+            <div class="modal-tip-badges" id="modalTipBadges">
+                <!-- Badges will be inserted here by JavaScript -->
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Average Score</h3>
+                    <div id="modalAvgScore" class="stat-value"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>7-Day Average</h3>
+                    <div id="modalSevenDayAvg" class="stat-value"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Month to Date</h3>
+                    <div id="modalMTDAvg" class="stat-value"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Days Tracked</h3>
+                    <div id="modalDaysTracked" class="stat-value"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Top Performer %</h3>
+                    <div id="modalTopPerformer" class="stat-value"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Days Above 75</h3>
+                    <div id="modalDaysAbove75" class="stat-value"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Club Signups %</h3>
+                    <div id="modalClubSignups" class="stat-value"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Sales Volume %</h3>
+                    <div id="modalSalesVolume" class="stat-value"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>SommScore</h1>
+        </header>
+
+        <div class="team-performance-bar">
+            <div class="metric-card">
+                <div class="metric-title">Team SommScore</div>
+                <div class="metric-value">{{ "%.1f"|format(team_performance.somm_score.value) }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Average Daily Revenue</div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                    <div class="metric-value">${{ "%.0f"|format(team_performance.revenue.current) }}</div>
+                    <div class="metric-comparison {% if team_performance.revenue.current > team_performance.revenue.reference %}positive{% else %}negative{% endif %}">
+                        {% if team_performance.revenue.current > team_performance.revenue.reference %}+{% endif %}${{ "%.0f"|format(team_performance.revenue.current - team_performance.revenue.reference) }}
+                    </div>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Average Daily Club Signups</div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                    <div class="metric-value">{{ "%.1f"|format(team_performance.clubs.current) }}</div>
+                    <div class="metric-comparison {% if team_performance.clubs.current > team_performance.clubs.reference %}positive{% else %}negative{% endif %}">
+                        {% if team_performance.clubs.current > team_performance.clubs.reference %}+{% endif %}{{ "%.1f"|format(team_performance.clubs.current - team_performance.clubs.reference) }}
+                    </div>
+                </div>
+            </div>
+            <div class="metric-card overall">
+                <div class="metric-title">Overall Performance</div>
+                <div class="metric-grade large">{{ "%.0f"|format(team_performance.overall_grade) }}</div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            {% for rank in rankings %}
+            <div class="card rank-item {% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% elif loop.index == 3 %}bronze{% endif %}">
+                <div class="tip-badges" {% if show_tip_badges != 'true' %}style="display: none;"{% endif %}>
+                    {% if tip_leaders.weekly and tip_leaders.weekly.name == rank.sales_associate %}
+                        <span class="tip-badge weekly">💰 Weekly Tips</span>
+                    {% endif %}
+                    {% if tip_leaders.monthly and tip_leaders.monthly.name == rank.sales_associate %}
+                        <span class="tip-badge monthly">💰 Monthly Tips</span>
+                    {% endif %}
+                    {% if tip_leaders.yearly and tip_leaders.yearly.name == rank.sales_associate %}
+                        <span class="tip-badge yearly">💰 Overall Tips</span>
+                    {% endif %}
+                    {% if revenue_leaders.weekly and revenue_leaders.weekly.name == rank.sales_associate %}
+                        <span class="tip-badge weekly">💵 Weekly Revenue</span>
+                    {% endif %}
+                    {% if revenue_leaders.monthly and revenue_leaders.monthly.name == rank.sales_associate %}
+                        <span class="tip-badge monthly">💵 Monthly Revenue</span>
+                    {% endif %}
+                    {% if revenue_leaders.yearly and revenue_leaders.yearly.name == rank.sales_associate %}
+                        <span class="tip-badge yearly">💵 Overall Revenue</span>
+                    {% endif %}
+                    {% if club_leaders.weekly and club_leaders.weekly.name == rank.sales_associate %}
+                        <span class="tip-badge weekly">🎯 Weekly Clubs</span>
+                    {% endif %}
+                    {% if club_leaders.monthly and club_leaders.monthly.name == rank.sales_associate %}
+                        <span class="tip-badge monthly">🎯 Monthly Clubs</span>
+                    {% endif %}
+                    {% if club_leaders.yearly and club_leaders.yearly.name == rank.sales_associate %}
+                        <span class="tip-badge yearly">🎯 Overall Clubs</span>
+                    {% endif %}
+                </div>
+                <div class="rank-header">
+                    <span class="rank-number">
+                        {% if loop.index == 1 %}
+                            🏆
+                        {% elif loop.index == 2 %}
+                            🥈
+                        {% elif loop.index == 3 %}
+                            🥉
+                        {% else %}
+                            {{ loop.index }}
+                        {% endif %}
+                    </span>
+                    <span class="associate-name" data-associate="{{ rank.sales_associate }}" onclick="showStats('{{ rank.sales_associate }}')">
+                        {{ rank.sales_associate }}
+                    </span>
+                </div>
+                <div class="score-row">
+                    <span class="average-score">
+                        {{ "%.1f"|format(rank.average_score) }}
+                        <span class="diff-from-avg {% if rank.diff_from_avg > 0 %}positive{% else %}negative{% endif %}">
+                            {% if rank.diff_from_avg > 0 %}+{% endif %}{{ "%.1f"|format(rank.diff_from_avg) }}
+                        </span>
+                        <span class="days-counted">({{ rank.days_counted }})</span>
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Debug info for tip leaders
+    console.log('Raw tip leaders data:', JSON.parse('{{ tip_leaders|tojson|safe }}'));
+    console.log('Show tip badges setting:', '{{ show_tip_badges }}');
+
+    const detailedStats = JSON.parse('{{ detailed_stats|safe }}');
+    const modal = document.getElementById('statsModal');
+    const closeBtn = document.getElementsByClassName('close')[0];
+    
+    function showStats(associate) {
+        const stats = detailedStats[associate];
+        document.getElementById('modalTitle').textContent = associate + ' Statistics';
+        
+        // Update tip badges
+        const modalTipBadges = document.getElementById('modalTipBadges');
+        modalTipBadges.innerHTML = ''; // Clear existing badges
+        
+        const showTipBadges = '{{ show_tip_badges }}' === 'true';
+        console.log('Show tip badges (in modal):', showTipBadges);
+        
+        if (showTipBadges) {
+            const tipLeaders = JSON.parse('{{ tip_leaders|tojson|safe }}');
+            const revenueLeaders = JSON.parse('{{ revenue_leaders|tojson|safe }}');
+            const clubLeaders = JSON.parse('{{ club_leaders|tojson|safe }}');
+            
+            console.log('Tip Leaders:', tipLeaders);
+            console.log('Revenue Leaders:', revenueLeaders);
+            console.log('Club Leaders:', clubLeaders);
+            console.log('Current Associate:', associate);
+            
+            // Add tip badges
+            if (tipLeaders.weekly.name === associate) {
+                modalTipBadges.innerHTML += '<span class="tip-badge weekly">💰 Weekly Tips</span>';
+            }
+            if (tipLeaders.monthly.name === associate) {
+                modalTipBadges.innerHTML += '<span class="tip-badge monthly">💰 Monthly Tips</span>';
+            }
+            if (tipLeaders.yearly.name === associate) {
+                modalTipBadges.innerHTML += '<span class="tip-badge yearly">💰 Overall Tips</span>';
+            }
+            
+            // Add revenue badges
+            if (revenueLeaders.weekly.name === associate) {
+                modalTipBadges.innerHTML += '<span class="tip-badge weekly">💵 Weekly Revenue</span>';
+            }
+            if (revenueLeaders.monthly.name === associate) {
+                modalTipBadges.innerHTML += '<span class="tip-badge monthly">💵 Monthly Revenue</span>';
+            }
+            if (revenueLeaders.yearly.name === associate) {
+                modalTipBadges.innerHTML += '<span class="tip-badge yearly">💵 Overall Revenue</span>';
+            }
+            
+            // Add club badges
+            if (clubLeaders.weekly.name === associate) {
+                modalTipBadges.innerHTML += '<span class="tip-badge weekly">🎯 Weekly Clubs</span>';
+            }
+            if (clubLeaders.monthly.name === associate) {
+                modalTipBadges.innerHTML += '<span class="tip-badge monthly">🎯 Monthly Clubs</span>';
+            }
+            if (clubLeaders.yearly.name === associate) {
+                modalTipBadges.innerHTML += '<span class="tip-badge yearly">🎯 Overall Clubs</span>';
+            }
+        }
+        
+        // Update stats
+        document.getElementById('modalAvgScore').textContent = stats.avg_score;
+        document.getElementById('modalSevenDayAvg').textContent = stats.seven_day_avg || 'No Data';
+        document.getElementById('modalMTDAvg').textContent = stats.mtd_avg || 'No Data';
+        document.getElementById('modalDaysTracked').textContent = stats.total_days;
+        document.getElementById('modalTopPerformer').textContent = stats.top_performer_pct + '%';
+        document.getElementById('modalDaysAbove75').textContent = stats.days_above_75;
+        document.getElementById('modalClubSignups').textContent = stats.club_signup_pct + '%';
+        document.getElementById('modalSalesVolume').textContent = stats.sales_dollars_pct + '%';
+        modal.style.display = 'block';
+    }
+    
+    closeBtn.onclick = function() {
+        modal.style.display = 'none';
+    }
+    
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    document.querySelectorAll('.associate-name').forEach(el => {
+        el.addEventListener('click', () => showStats(el.dataset.associate));
+    });
+</script>
+{% endblock %} 
