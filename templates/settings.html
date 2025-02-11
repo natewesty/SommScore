@@ -16,30 +16,70 @@
         <!-- Settings Card -->
         <div class="settings-card card">
             <h2 class="card-title">Settings</h2>
-            <form method="POST" action="{{ url_for('settings') }}">
-                <div class="settings-section">
-                    <h3>Active Associates</h3>
-                    <p class="section-description">Select which associates to display on the dashboard.</p>
-                    
-                    <div class="associates-grid">
-                        {% for associate in all_associates %}
-                        <div class="control-card">
-                            <div class="control-content">
-                                <div class="control-info">
-                                    <h3>{{ associate }}</h3>
+            
+            <!-- Associates Management Section -->
+            <div class="settings-section">
+                <h3>Active Associates</h3>
+                <p class="section-description">Drag and drop associates between sections to manage their status.</p>
+                
+                <div class="associates-container">
+                    <div class="associates-column active-column">
+                        <h4>Active</h4>
+                        <div class="associates-list active-list" id="activeList">
+                            {% for associate in active_associates %}
+                            <div class="associate-card" draggable="true" data-associate="{{ associate }}">
+                                <div class="rank-header">
+                                    <span class="associate-name">{{ associate }}</span>
                                 </div>
-                                <label class="switch">
-                                    <input type="checkbox" name="active_associates" value="{{ associate }}"
-                                           {% if associate in active_associates %}checked{% endif %}>
-                                    <span class="slider round"></span>
-                                </label>
                             </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
+                    </div>
+                    
+                    <div class="associates-column bench-column">
+                        <h4>Bench</h4>
+                        <div class="associates-list bench-list" id="benchList">
+                            {% for associate in all_associates %}
+                                {% if associate not in active_associates and associate not in hidden_associates %}
+                                <div class="associate-card" draggable="true" data-associate="{{ associate }}">
+                                    <div class="rank-header">
+                                        <span class="associate-name">{{ associate }}</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="associates-column hidden-column">
+                        <div class="column-header">
+                            <h4>Hidden</h4>
+                            <label class="switch">
+                                <input type="checkbox" id="showHiddenToggle">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="associates-list hidden-list" id="hiddenList">
+                            {% for associate in hidden_associates %}
+                            <div class="associate-card" draggable="true" data-associate="{{ associate }}">
+                                <div class="rank-header">
+                                    <span class="associate-name">{{ associate }}</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
+                
+                <form id="associatesForm" method="POST" action="{{ url_for('settings') }}" style="display: none;">
+                    <input type="hidden" name="active_associates" id="activeAssociates">
+                    <input type="hidden" name="hidden_associates" id="hiddenAssociates">
+                </form>
+            </div>
 
-                <div class="settings-section">
+            <!-- General Settings Form -->
+            <form id="generalSettingsForm" method="POST" action="{{ url_for('settings') }}">
+                <div class="settings-section" style="margin-top: 2rem;">
                     <h3>Year Type</h3>
                     <p class="section-description">Choose between calendar year or fiscal year for calculations.</p>
                     
@@ -220,6 +260,47 @@
             const result = await response.json();
             
             if (response.ok) {
+                // Update the associates lists with new data
+                const benchList = document.getElementById('benchList');
+                const activeList = document.getElementById('activeList');
+                const hiddenList = document.getElementById('hiddenList');
+                
+                // Clear existing lists
+                benchList.innerHTML = '';
+                activeList.innerHTML = '';
+                hiddenList.innerHTML = '';
+                
+                // Helper function to create associate card
+                function createAssociateCard(associate) {
+                    return `
+                        <div class="associate-card" draggable="true" data-associate="${associate}">
+                            <div class="rank-header">
+                                <span class="associate-name">${associate}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Populate active list
+                result.active_associates.forEach(associate => {
+                    activeList.insertAdjacentHTML('beforeend', createAssociateCard(associate));
+                });
+                
+                // Populate hidden list
+                result.hidden_associates.forEach(associate => {
+                    hiddenList.insertAdjacentHTML('beforeend', createAssociateCard(associate));
+                });
+                
+                // Populate bench list (associates that are neither active nor hidden)
+                result.all_associates.forEach(associate => {
+                    if (!result.active_associates.includes(associate) && !result.hidden_associates.includes(associate)) {
+                        benchList.insertAdjacentHTML('beforeend', createAssociateCard(associate));
+                    }
+                });
+                
+                // Reinitialize drag and drop for new cards
+                initializeDragAndDrop();
+                
                 alert(`Update completed successfully! ${result.message}`);
             } else {
                 alert(`Error: ${result.error}`);
@@ -231,6 +312,134 @@
             updateButton.disabled = false;
         }
     }
+    
+    // Function to initialize drag and drop functionality
+    function initializeDragAndDrop() {
+        const associateCards = document.querySelectorAll('.associate-card');
+        const associateLists = document.querySelectorAll('.associates-list');
+        
+        associateCards.forEach(card => {
+            card.addEventListener('dragstart', function(e) {
+                e.dataTransfer.setData('text/plain', this.dataset.associate);
+                this.classList.add('dragging');
+                setTimeout(() => {
+                    this.style.opacity = '0.5';
+                }, 0);
+            });
+
+            card.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                this.style.opacity = '1';
+                updateFormInputs();
+            });
+        });
+
+        associateLists.forEach(list => {
+            list.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+
+            list.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+
+            list.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                
+                const associateName = e.dataTransfer.getData('text/plain');
+                const card = document.querySelector(`.associate-card[data-associate="${associateName}"]`);
+                
+                if (card) {
+                    this.appendChild(card);
+                }
+            });
+        });
+    }
+    </script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get the general settings form
+        const generalSettingsForm = document.getElementById('generalSettingsForm');
+        
+        // Add submit handler for the general settings form
+        generalSettingsForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Get all the current values
+            const formData = new FormData(this);
+            
+            // Submit the form
+            fetch(this.action, {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (response.ok) {
+                    // Redirect to index page on success
+                    window.location.href = "{{ url_for('index') }}";
+                } else {
+                    console.error('Failed to save settings');
+                    alert('Failed to save settings. Please try again.');
+                }
+            }).catch(error => {
+                console.error('Error saving settings:', error);
+                alert('An error occurred while saving settings. Please try again.');
+            });
+        });
+
+        // Initialize drag and drop functionality
+        initializeDragAndDrop();
+
+        // Handle associates form updates
+        function updateAssociatesForm() {
+            const activeList = document.getElementById('activeList');
+            const hiddenList = document.getElementById('hiddenList');
+            
+            const activeAssociates = Array.from(activeList.children).map(card => 
+                card.dataset.associate
+            );
+            const hiddenAssociates = Array.from(hiddenList.children).map(card => 
+                card.dataset.associate
+            );
+            
+            document.getElementById('activeAssociates').value = JSON.stringify(activeAssociates);
+            document.getElementById('hiddenAssociates').value = JSON.stringify(hiddenAssociates);
+            
+            // Auto-submit associates form when changes are made
+            const formData = new FormData(document.getElementById('associatesForm'));
+            fetch(document.getElementById('associatesForm').action, {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (!response.ok) {
+                    console.error('Failed to save associate changes');
+                }
+            }).catch(error => {
+                console.error('Error saving associate changes:', error);
+            });
+        }
+
+        // Add drag end handler to update associates
+        document.querySelectorAll('.associate-card').forEach(card => {
+            card.addEventListener('dragend', updateAssociatesForm);
+        });
+
+        // Handle hidden toggle
+        const showHiddenToggle = document.getElementById('showHiddenToggle');
+        const hiddenList = document.getElementById('hiddenList');
+        
+        showHiddenToggle.addEventListener('change', function() {
+            hiddenList.classList.toggle('show', this.checked);
+            const hiddenColumn = document.querySelector('.hidden-column');
+            hiddenColumn.style.minHeight = this.checked ? '200px' : '60px';
+        });
+
+        // Set initial hidden column state
+        const hiddenColumn = document.querySelector('.hidden-column');
+        hiddenColumn.style.minHeight = showHiddenToggle.checked ? '200px' : '60px';
+    });
     </script>
 </body>
 </html> 

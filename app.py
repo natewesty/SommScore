@@ -40,12 +40,13 @@ def init_settings_table():
         )
     ''')
     
-    # Add dark_mode to default settings with dark mode true by default
+    # Add default settings
     conn.execute('''
         INSERT OR IGNORE INTO settings (key, value) 
         VALUES 
             ('year_type', 'calendar'),
             ('active_associates', '[]'),
+            ('hidden_associates', '[]'),
             ('fiscal_year_start', '07-01'),
             ('fiscal_year_end', '06-30'),
             ('dark_mode', 'true'),
@@ -87,6 +88,17 @@ def get_active_associates():
         return json.loads(result['value']) if result else []
     except Exception as e:
         logger.error(f"Error getting active associates: {e}")
+        return []
+
+def get_hidden_associates():
+    """Get list of hidden associates from settings table."""
+    try:
+        conn = get_db_connection()
+        result = conn.execute('SELECT value FROM settings WHERE key = "hidden_associates"').fetchone()
+        conn.close()
+        return json.loads(result['value']) if result else []
+    except Exception as e:
+        logger.error(f"Error getting hidden associates: {e}")
         return []
 
 def get_year_type():
@@ -449,10 +461,14 @@ def settings():
     conn = get_db_connection()
     
     if request.method == 'POST':
-        # Handle active associates
-        active_associates = request.form.getlist('active_associates')
+        # Handle active and hidden associates
+        active_associates = json.loads(request.form.get('active_associates', '[]'))
+        hidden_associates = json.loads(request.form.get('hidden_associates', '[]'))
+        
         conn.execute('UPDATE settings SET value = ? WHERE key = "active_associates"', 
                     (json.dumps(active_associates),))
+        conn.execute('UPDATE settings SET value = ? WHERE key = "hidden_associates"', 
+                    (json.dumps(hidden_associates),))
         
         # Handle year type and fiscal dates
         year_type = request.form.get('year_type', 'calendar')
@@ -461,7 +477,6 @@ def settings():
         if year_type == 'fiscal':
             fiscal_start = request.form.get('fiscal_start')
             fiscal_end = request.form.get('fiscal_end')
-            # Store the full date format in the database
             conn.execute('UPDATE settings SET value = ? WHERE key = "fiscal_year_start"', 
                         (fiscal_start,))
             conn.execute('UPDATE settings SET value = ? WHERE key = "fiscal_year_end"', 
@@ -475,6 +490,9 @@ def settings():
         conn.execute('UPDATE settings SET value = ? WHERE key = "show_tip_badges"', (show_tip_badges,))
         
         conn.commit()
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'status': 'success'})
         return redirect(url_for('index'))
     
     # Check and update fiscal year if needed
@@ -483,24 +501,22 @@ def settings():
     # Get all settings for the template
     all_associates = get_all_associates()
     active_associates = get_active_associates()
+    hidden_associates = get_hidden_associates()
     year_type = get_year_type()
     
-    # Get fiscal dates and ensure they're in the correct format for date inputs (YYYY-MM-DD)
+    # Get fiscal dates
     fiscal_start = conn.execute('SELECT value FROM settings WHERE key = "fiscal_year_start"').fetchone()['value']
     fiscal_end = conn.execute('SELECT value FROM settings WHERE key = "fiscal_year_end"').fetchone()['value']
     
     # If dates aren't in YYYY-MM-DD format, set defaults
     try:
-        # Validate the date format
         datetime.strptime(fiscal_start, '%Y-%m-%d')
         datetime.strptime(fiscal_end, '%Y-%m-%d')
     except (ValueError, TypeError):
-        # Set default dates if invalid
         current_year = datetime.now().year
-        fiscal_start = f"{current_year}-07-01"  # July 1st of current year
-        fiscal_end = f"{current_year + 1}-06-30"  # June 30th of next year
+        fiscal_start = f"{current_year}-07-01"
+        fiscal_end = f"{current_year + 1}-06-30"
         
-        # Update the database with properly formatted dates
         conn.execute('UPDATE settings SET value = ? WHERE key = "fiscal_year_start"', (fiscal_start,))
         conn.execute('UPDATE settings SET value = ? WHERE key = "fiscal_year_end"', (fiscal_end,))
         conn.commit()
@@ -512,23 +528,66 @@ def settings():
     # Get last update time
     last_update = conn.execute('SELECT value FROM settings WHERE key = "last_order_update"').fetchone()
     if last_update and last_update['value'] != 'Never':
-        # Convert from YYYY-MM-DD to MM/DD/YYYY
         date_obj = datetime.strptime(last_update['value'], '%Y-%m-%d')
         last_update_time = date_obj.strftime('%m/%d/%Y')
     else:
         last_update_time = 'Never'
+    
+    # Get detailed stats for all associates
+    detailed_stats = {}
+    for associate in all_associates:
+        stats = conn.execute('''
+            WITH daily_stats AS (
+                SELECT 
+                    score_date,
+                    sales_associate,
+                    daily_score,
+                    RANK() OVER (PARTITION BY score_date ORDER BY daily_score DESC) as rank_for_day
+                FROM somm_scores 
+                GROUP BY score_date, sales_associate
+            ),
+            team_avg AS (
+                SELECT COALESCE(ROUND(AVG(daily_score), 2), 0) as team_average
+                FROM somm_scores
+                WHERE score_date >= date('now', '-30 days')
+            )
+            SELECT 
+                COALESCE(COUNT(*), 0) as total_days,
+                COALESCE(ROUND(AVG(daily_score), 2), 0) as avg_score,
+                COALESCE(ROUND(AVG(CASE WHEN rank_for_day = 1 THEN 1 ELSE 0 END) * 100, 1), 0) as top_performer_pct,
+                COALESCE(COUNT(CASE WHEN daily_score >= 75 THEN 1 END), 0) as days_above_75,
+                COALESCE((SELECT team_average FROM team_avg), 0) as team_avg,
+                COALESCE(ROUND(AVG(daily_score) - (SELECT team_average FROM team_avg), 1), 0) as diff_from_avg
+            FROM daily_stats
+            WHERE sales_associate = ?
+        ''', (associate,)).fetchone()
+        
+        if stats:
+            detailed_stats[associate] = dict(stats)
+        else:
+            # Provide default values if no stats are found
+            detailed_stats[associate] = {
+                'total_days': 0,
+                'avg_score': 0,
+                'top_performer_pct': 0,
+                'days_above_75': 0,
+                'team_avg': 0,
+                'diff_from_avg': 0
+            }
     
     conn.close()
     
     return render_template('settings.html',
                          all_associates=all_associates,
                          active_associates=active_associates,
+                         hidden_associates=hidden_associates,
                          year_type=year_type,
                          fiscal_start=fiscal_start,
                          fiscal_end=fiscal_end,
                          dark_mode=dark_mode,
                          show_tip_badges=show_tip_badges,
-                         last_update_time=last_update_time)
+                         last_update_time=last_update_time,
+                         detailed_stats=detailed_stats)
 
 @app.route('/setup/progress')
 def setup_progress_status():
@@ -580,20 +639,93 @@ def setup_wizard():
     
     return render_template('setup.html')
 
+@app.route('/team_setup', methods=['GET', 'POST'])
+def team_setup():
+    """Setup page for selecting active associates after initial build."""
+    if request.method == 'POST':
+        active_associates = json.loads(request.form.get('active_associates', '[]'))
+        hidden_associates = json.loads(request.form.get('hidden_associates', '[]'))
+        
+        conn = get_db_connection()
+        conn.execute('UPDATE settings SET value = ? WHERE key = "active_associates"', 
+                    (json.dumps(active_associates),))
+        conn.execute('UPDATE settings SET value = ? WHERE key = "hidden_associates"', 
+                    (json.dumps(hidden_associates),))
+        conn.commit()
+        conn.close()
+        
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    dark_mode = conn.execute('SELECT value FROM settings WHERE key = "dark_mode"').fetchone()['value']
+    
+    # Get all associates
+    all_associates = get_all_associates()
+    active_associates = get_active_associates()
+    hidden_associates = get_hidden_associates()
+    
+    # Get associate stats
+    associate_stats = {}
+    for associate in all_associates:
+        stats = conn.execute('''
+            WITH daily_stats AS (
+                SELECT 
+                    score_date,
+                    sales_associate,
+                    daily_score,
+                    RANK() OVER (PARTITION BY score_date ORDER BY daily_score DESC) as rank_for_day
+                FROM somm_scores 
+                GROUP BY score_date, sales_associate
+            ),
+            team_avg AS (
+                SELECT ROUND(AVG(daily_score), 2) as team_average
+                FROM somm_scores
+                WHERE score_date >= date('now', '-30 days')
+            )
+            SELECT 
+                COALESCE(COUNT(*), 0) as days_counted,
+                COALESCE(ROUND(AVG(daily_score), 2), 0) as average_score,
+                COALESCE(ROUND(AVG(daily_score) - (SELECT team_average FROM team_avg), 1), 0) as diff_from_avg
+            FROM daily_stats
+            WHERE sales_associate = ?
+        ''', (associate,)).fetchone()
+        
+        if stats:
+            associate_stats[associate] = {
+                'days_counted': stats['days_counted'],
+                'average_score': stats['average_score'],
+                'diff_from_avg': stats['diff_from_avg']
+            }
+        else:
+            associate_stats[associate] = {
+                'days_counted': 0,
+                'average_score': 0,
+                'diff_from_avg': 0
+            }
+    
+    conn.close()
+    
+    return render_template('team_setup.html', 
+                         all_associates=all_associates,
+                         active_associates=active_associates,
+                         hidden_associates=hidden_associates,
+                         dark_mode=dark_mode,
+                         associate_stats=associate_stats)
+
 @app.route('/')
 def index():
     # Check if the application has been initialized
     if not is_initialized():
         return redirect(url_for('setup_wizard'))
         
+    # Check if active associates are set up
+    active_associates = get_active_associates()
+    if not active_associates:
+        return redirect(url_for('team_setup'))
+        
     # Check and update fiscal year if needed
     update_fiscal_year_if_needed()
     
-    # Update to use settings
-    active_associates = get_active_associates()
-    if not active_associates:  # If no active associates set
-        return redirect(url_for('settings'))
-        
     colors = [
         '#2563eb', '#16a34a', '#dc2626', '#9333ea', '#ea580c', 
         '#0891b2', '#4f46e5', '#be123c', '#854d0e', '#115e59', 
@@ -1420,8 +1552,17 @@ def manual_update():
         from daily_update import update_data
         update_data(start_date=start_date, end_date=end_date)
         
+        # Get updated list of associates
+        all_associates = get_all_associates()
+        active_associates = get_active_associates()
+        hidden_associates = get_hidden_associates()
+        
+        # Return success message with updated associate lists
         return jsonify({
-            'message': 'Update completed successfully. Check the logs for details.'
+            'message': 'Update completed successfully. Check the logs for details.',
+            'all_associates': all_associates,
+            'active_associates': active_associates,
+            'hidden_associates': hidden_associates
         })
             
     except Exception as e:

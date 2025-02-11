@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SommScore Team Setup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Add styles for the move to bench button */
+        .move-to-bench {
+            padding: 0.35rem 0.75rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-left: auto;
+        }
+        
+        .move-to-bench:hover {
+            background: #1d4ed8;
+        }
+        
+        /* Update modal associate card to accommodate button */
+        #modalHiddenList .associate-card {
+            justify-content: space-between;
+            padding: 0.75rem;
+        }
+        
+        #modalHiddenList .rank-header {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        /* Container layout */
+        .associates-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            width: 100%;
+        }
+
+        /* Column styling */
+        .associates-column {
+            background: var(--background-color);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .associates-list {
+            min-height: 150px;
+            border: 2px dashed transparent;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 1rem;
+            background: var(--background-color);
+        }
+
+        @media (min-width: 640px) {
+            .associates-list {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .associates-list {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .associates-list.drag-over {
+            border-color: var(--primary-color);
+            background-color: rgba(37, 99, 235, 0.1);
+            border-style: dashed;
+        }
+
+        /* Associate card styling */
+        .rank-item {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+            overflow: visible;
+            cursor: grab;
+        }
+
+        .rank-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            width: 100%;
+            min-width: 0;
+        }
+
+        .rank-number {
+            font-size: 1rem;
+            width: 28px;
+            height: 28px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+        }
+
+        .associate-name {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .score-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding-top: 0.5rem;
+            width: 60%;
+        }
+
+        .average-score {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .diff-from-avg {
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            background: var(--background-color);
+        }
+
+        .diff-from-avg.positive {
+            color: #16a34a;
+        }
+
+        .diff-from-avg.negative {
+            color: #dc2626;
+        }
+
+        .days-counted {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-style: italic;
+            opacity: 0.8;
+        }
+
+        /* Badge container styling */
+        .badge-container {
+            position: absolute;
+            top: -0.5rem;
+            right: -0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: flex-end;
+            z-index: 10;
+        }
+
+        /* Hide badge styling */
+        .hide-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .hide-badge:hover {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] .hide-badge {
+            background-color: var(--card-bg);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        [data-theme="dark"] .hide-badge:hover {
+            background-color: var(--primary-color);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Column header styling */
+        .column-header {
+            margin-bottom: 1rem;
+        }
+
+        h4 {
+            font-size: 1.25rem;
+            margin: 0;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Empty state styling */
+        .associates-list:empty::before {
+            content: "Drag associates here";
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-style: italic;
+            opacity: 0.7;
+            align-self: center;
+            padding: 1rem;
+            grid-column: 1 / -1;
+        }
+
+        .settings-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+
+        .view-hidden-button {
+            padding: 0.75rem 1.5rem;
+            background: var(--background-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .view-hidden-button:hover {
+            background: var(--border-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Team Setup</h1>
+            <p class="subtitle">
+                Drag and drop associates to set up your team. Benched associates will not be tracked.
+            </p>
+        </header>
+
+        <div class="settings-card card">
+            <div class="associates-container">
+                <div class="associates-column active-column">
+                    <h4>Active</h4>
+                    <div class="associates-list active-list" id="activeList">
+                        {% for associate in active_associates %}
+                        <div class="rank-item" draggable="true" data-associate="{{ associate }}">
+                            <div class="rank-header">
+                                <span class="rank-number">👤</span>
+                                <span class="associate-name">{{ associate }}</span>
+                            </div>
+                            <div class="score-row">
+                                <span class="average-score">
+                                    {{ "%.1f"|format(associate_stats[associate]['average_score']) }}
+                                    <span class="diff-from-avg {% if associate_stats[associate]['diff_from_avg'] > 0 %}positive{% else %}negative{% endif %}">
+                                        {% if associate_stats[associate]['diff_from_avg'] > 0 %}+{% endif %}{{ "%.1f"|format(associate_stats[associate]['diff_from_avg']) }}
+                                    </span>
+                                    <span class="days-counted">({{ associate_stats[associate]['days_counted'] }})</span>
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="associates-column bench-column">
+                    <h4>Bench</h4>
+                    <div class="associates-list bench-list" id="benchList">
+                        {% for associate in all_associates %}
+                            {% if associate not in active_associates and associate not in hidden_associates %}
+                            <div class="rank-item" draggable="true" data-associate="{{ associate }}">
+                                <div class="rank-header">
+                                    <span class="rank-number">👤</span>
+                                    <span class="associate-name">{{ associate }}</span>
+                                </div>
+                                <div class="score-row">
+                                    <span class="average-score">
+                                        {{ "%.1f"|format(associate_stats[associate]['average_score']) }}
+                                        <span class="diff-from-avg {% if associate_stats[associate]['diff_from_avg'] > 0 %}positive{% else %}negative{% endif %}">
+                                            {% if associate_stats[associate]['diff_from_avg'] > 0 %}+{% endif %}{{ "%.1f"|format(associate_stats[associate]['diff_from_avg']) }}
+                                        </span>
+                                        <span class="days-counted">({{ associate_stats[associate]['days_counted'] }})</span>
+                                    </span>
+                                </div>
+                                <div class="badge-container">
+                                    <button type="button" class="hide-badge" onclick="hideAssociate('{{ associate }}')">
+                                        Hide
+                                    </button>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <form id="setupForm" method="POST" style="display: none;">
+                <input type="hidden" name="active_associates" id="activeAssociates">
+                <input type="hidden" name="hidden_associates" id="hiddenAssociates">
+            </form>
+
+            <div class="settings-actions">
+                <button type="button" onclick="showHiddenModal()" class="view-hidden-button">
+                    View Hidden
+                </button>
+                <button type="button" onclick="submitForm()" class="save-button" id="submitButton" disabled>
+                    Continue to Dashboard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Associates Modal -->
+    <div id="hiddenModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeHiddenModal()">&times;</span>
+            <h2>Hidden Associates</h2>
+            <div class="modal-associates-list" id="modalHiddenList">
+                {% for associate in hidden_associates %}
+                <div class="rank-item" draggable="true" data-associate="{{ associate }}">
+                    <div class="rank-header">
+                        <span class="rank-number">👤</span>
+                        <span class="associate-name">{{ associate }}</span>
+                    </div>
+                    <button type="button" class="move-to-bench" onclick="moveToBench('{{ associate }}')">
+                        Move to Bench
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Initialize associate stats from server data
+    const associateStats = JSON.parse('{{ associate_stats|tojson|safe }}');
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Apply theme
+        const darkMode = '{{ dark_mode }}' === 'true';
+        document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+        
+        // Modal functionality
+        const hiddenModal = document.getElementById('hiddenModal');
+        
+        window.showHiddenModal = function() {
+            hiddenModal.style.display = 'block';
+        }
+        
+        window.closeHiddenModal = function() {
+            hiddenModal.style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            if (event.target == hiddenModal) {
+                hiddenModal.style.display = 'none';
+            }
+        }
+
+        // Helper function to sort cards by SommScore
+        function sortActiveList() {
+            const activeList = document.getElementById('activeList');
+            const cards = Array.from(activeList.children);
+            
+            cards.sort((a, b) => {
+                const aScore = associateStats[a.dataset.associate]?.average_score || 0;
+                const bScore = associateStats[b.dataset.associate]?.average_score || 0;
+                return bScore - aScore; // Sort in descending order
+            });
+            
+            // Reappend cards in sorted order
+            cards.forEach(card => activeList.appendChild(card));
+        }
+
+        // Initialize drag and drop functionality
+        function initializeDragAndDrop() {
+            const associateCards = document.querySelectorAll('.rank-item');
+            const associateLists = document.querySelectorAll('.associates-list');
+            
+            associateCards.forEach(card => {
+                card.addEventListener('dragstart', function(e) {
+                    e.dataTransfer.setData('text/plain', this.dataset.associate);
+                    this.classList.add('dragging');
+                    setTimeout(() => {
+                        this.style.opacity = '0.5';
+                    }, 0);
+                });
+
+                card.addEventListener('dragend', function() {
+                    this.classList.remove('dragging');
+                    this.style.opacity = '1';
+                    updateFormData();
+                });
+            });
+
+            associateLists.forEach(list => {
+                list.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    this.classList.add('drag-over');
+                });
+
+                list.addEventListener('dragleave', function() {
+                    this.classList.remove('drag-over');
+                });
+
+                list.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+                    
+                    const associateName = e.dataTransfer.getData('text/plain');
+                    const card = document.querySelector(`.rank-item[data-associate="${associateName}"]`);
+                    
+                    if (card) {
+                        // Create new card with appropriate buttons based on the list
+                        const newCard = createAssociateCard(associateName, this.id === 'benchList');
+                        
+                        if (this.id === 'activeList') {
+                            // For active list, add the card and then sort
+                            this.appendChild(newCard);
+                            sortActiveList();
+                        } else {
+                            // For other lists, just add to the top
+                            this.insertBefore(newCard, this.firstChild);
+                        }
+                        
+                        card.remove();
+                    }
+                });
+            });
+        }
+
+        // Helper function to create associate cards
+        function createAssociateCard(associateName, isBench) {
+            const card = document.createElement('div');
+            card.className = 'rank-item';
+            card.draggable = true;
+            card.dataset.associate = associateName;
+            
+            const stats = associateStats[associateName] || {
+                average_score: 0,
+                diff_from_avg: 0,
+                days_counted: 0
+            };
+            
+            let cardContent = `
+                <div class="rank-header">
+                    <span class="rank-number">👤</span>
+                    <span class="associate-name">${associateName}</span>
+                </div>
+                <div class="score-row">
+                    <span class="average-score">
+                        ${stats.average_score.toFixed(1)}
+                        <span class="diff-from-avg ${stats.diff_from_avg > 0 ? 'positive' : 'negative'}">
+                            ${(stats.diff_from_avg > 0 ? '+' : '') + stats.diff_from_avg.toFixed(1)}
+                        </span>
+                        <span class="days-counted">(${stats.days_counted})</span>
+                    </span>
+                </div>
+            `;
+            
+            if (isBench) {
+                cardContent += `
+                    <div class="badge-container">
+                        <button type="button" class="hide-badge" onclick="hideAssociate('${associateName}')">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                            Hide
+                        </button>
+                    </div>
+                `;
+            }
+            
+            card.innerHTML = cardContent;
+            
+            // Add drag event listeners
+            card.addEventListener('dragstart', function(e) {
+                e.dataTransfer.setData('text/plain', this.dataset.associate);
+                this.classList.add('dragging');
+                setTimeout(() => {
+                    this.style.opacity = '0.5';
+                }, 0);
+            });
+
+            card.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                this.style.opacity = '1';
+                updateFormData();
+            });
+            
+            return card;
+        }
+
+        // Function to hide an associate
+        window.hideAssociate = function(associateName) {
+            const card = document.querySelector(`.rank-item[data-associate="${associateName}"]`);
+            if (card) {
+                const modalHiddenList = document.getElementById('modalHiddenList');
+                
+                // Create new card for modal with move to bench button
+                const modalCard = document.createElement('div');
+                modalCard.className = 'rank-item';
+                modalCard.draggable = true;
+                modalCard.dataset.associate = associateName;
+                modalCard.innerHTML = `
+                    <div class="rank-header">
+                        <span class="rank-number">👤</span>
+                        <span class="associate-name">${associateName}</span>
+                    </div>
+                    <button type="button" class="move-to-bench" onclick="moveToBench('${associateName}')">
+                        Move to Bench
+                    </button>
+                `;
+                
+                modalHiddenList.appendChild(modalCard);
+                card.remove();
+                updateFormData();
+            }
+        }
+
+        // Update form data function
+        function updateFormData() {
+            const activeList = document.getElementById('activeList');
+            const benchList = document.getElementById('benchList');
+            const modalHiddenList = document.getElementById('modalHiddenList');
+            
+            const activeAssociates = Array.from(activeList.children).map(card => 
+                card.dataset.associate
+            );
+            const hiddenAssociates = Array.from(modalHiddenList.children).map(card => 
+                card.dataset.associate
+            );
+            
+            document.getElementById('activeAssociates').value = JSON.stringify(activeAssociates);
+            document.getElementById('hiddenAssociates').value = JSON.stringify(hiddenAssociates);
+            
+            document.getElementById('submitButton').disabled = activeAssociates.length === 0;
+        }
+
+        // Initialize drag and drop
+        initializeDragAndDrop();
+        
+        // Initial form data update
+        updateFormData();
+
+        // Function to move associate back to bench
+        window.moveToBench = function(associateName) {
+            const modalCard = document.querySelector(`#modalHiddenList .rank-item[data-associate="${associateName}"]`);
+            const benchList = document.getElementById('benchList');
+            
+            if (modalCard && benchList) {
+                // Create new card for bench with hide badge
+                const benchCard = createAssociateCard(associateName, true);
+                
+                // Add to bench list
+                benchList.insertBefore(benchCard, benchList.firstChild);
+                
+                // Remove from modal
+                modalCard.remove();
+                
+                // Update form data
+                updateFormData();
+            }
+        }
+
+        // Sort active list on initial load
+        sortActiveList();
+    });
+
+    function submitForm() {
+        document.getElementById('setupForm').submit();
+    }
+    </script>
+</body>
+</html> 
