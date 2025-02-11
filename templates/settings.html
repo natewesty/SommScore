@@ -1,13 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SommScore Settings</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block extra_head %}
+    <style>
+        /* Add any settings-specific styles here */
+    </style>
+{% endblock %}
+
+{% block content %}
     <div class="container">
         <header>
             <h1>SommScore Settings</h1>
@@ -17,69 +16,9 @@
         <div class="settings-card card">
             <h2 class="card-title">Settings</h2>
             
-            <!-- Associates Management Section -->
-            <div class="settings-section">
-                <h3>Active Associates</h3>
-                <p class="section-description">Drag and drop associates between sections to manage their status.</p>
-                
-                <div class="associates-container">
-                    <div class="associates-column active-column">
-                        <h4>Active</h4>
-                        <div class="associates-list active-list" id="activeList">
-                            {% for associate in active_associates %}
-                            <div class="associate-card" draggable="true" data-associate="{{ associate }}">
-                                <div class="rank-header">
-                                    <span class="associate-name">{{ associate }}</span>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    
-                    <div class="associates-column bench-column">
-                        <h4>Bench</h4>
-                        <div class="associates-list bench-list" id="benchList">
-                            {% for associate in all_associates %}
-                                {% if associate not in active_associates and associate not in hidden_associates %}
-                                <div class="associate-card" draggable="true" data-associate="{{ associate }}">
-                                    <div class="rank-header">
-                                        <span class="associate-name">{{ associate }}</span>
-                                    </div>
-                                </div>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-                    </div>
-                    
-                    <div class="associates-column hidden-column">
-                        <div class="column-header">
-                            <h4>Hidden</h4>
-                            <label class="switch">
-                                <input type="checkbox" id="showHiddenToggle">
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
-                        <div class="associates-list hidden-list" id="hiddenList">
-                            {% for associate in hidden_associates %}
-                            <div class="associate-card" draggable="true" data-associate="{{ associate }}">
-                                <div class="rank-header">
-                                    <span class="associate-name">{{ associate }}</span>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-                
-                <form id="associatesForm" method="POST" action="{{ url_for('settings') }}" style="display: none;">
-                    <input type="hidden" name="active_associates" id="activeAssociates">
-                    <input type="hidden" name="hidden_associates" id="hiddenAssociates">
-                </form>
-            </div>
-
             <!-- General Settings Form -->
             <form id="generalSettingsForm" method="POST" action="{{ url_for('settings') }}">
-                <div class="settings-section" style="margin-top: 2rem;">
+                <div class="settings-section">
                     <h3>Year Type</h3>
                     <p class="section-description">Choose between calendar year or fiscal year for calculations.</p>
                     
@@ -192,7 +131,9 @@
             </div>
         </div>
     </div>
+{% endblock %}
 
+{% block extra_scripts %}
     <script>
     function toggleFiscalDates(show) {
         const fiscalDates = document.getElementById('fiscalDates');
@@ -388,58 +329,6 @@
                 alert('An error occurred while saving settings. Please try again.');
             });
         });
-
-        // Initialize drag and drop functionality
-        initializeDragAndDrop();
-
-        // Handle associates form updates
-        function updateAssociatesForm() {
-            const activeList = document.getElementById('activeList');
-            const hiddenList = document.getElementById('hiddenList');
-            
-            const activeAssociates = Array.from(activeList.children).map(card => 
-                card.dataset.associate
-            );
-            const hiddenAssociates = Array.from(hiddenList.children).map(card => 
-                card.dataset.associate
-            );
-            
-            document.getElementById('activeAssociates').value = JSON.stringify(activeAssociates);
-            document.getElementById('hiddenAssociates').value = JSON.stringify(hiddenAssociates);
-            
-            // Auto-submit associates form when changes are made
-            const formData = new FormData(document.getElementById('associatesForm'));
-            fetch(document.getElementById('associatesForm').action, {
-                method: 'POST',
-                body: formData
-            }).then(response => {
-                if (!response.ok) {
-                    console.error('Failed to save associate changes');
-                }
-            }).catch(error => {
-                console.error('Error saving associate changes:', error);
-            });
-        }
-
-        // Add drag end handler to update associates
-        document.querySelectorAll('.associate-card').forEach(card => {
-            card.addEventListener('dragend', updateAssociatesForm);
-        });
-
-        // Handle hidden toggle
-        const showHiddenToggle = document.getElementById('showHiddenToggle');
-        const hiddenList = document.getElementById('hiddenList');
-        
-        showHiddenToggle.addEventListener('change', function() {
-            hiddenList.classList.toggle('show', this.checked);
-            const hiddenColumn = document.querySelector('.hidden-column');
-            hiddenColumn.style.minHeight = this.checked ? '200px' : '60px';
-        });
-
-        // Set initial hidden column state
-        const hiddenColumn = document.querySelector('.hidden-column');
-        hiddenColumn.style.minHeight = showHiddenToggle.checked ? '200px' : '60px';
     });
     </script>
-</body>
-</html> 
+{% endblock %} 
