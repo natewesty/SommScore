@@ -159,6 +159,12 @@ h1::after {
 .associate-name {
     flex: 1;
     font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    cursor: pointer;
+    transition: color 0.2s;
 }
 
 .rank-header {
@@ -168,6 +174,8 @@ h1::after {
     margin-bottom: 0;
     padding-bottom: 0.75rem;
     border-bottom: 1px solid var(--border-color);
+    min-width: 0;
+    width: 100%;
 }
 
 .score-row {
@@ -349,7 +357,7 @@ h1::after {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #e5e7eb;
+    background-color: var(--text-secondary);
     transition: .3s;
     border-radius: 24px;
 }
@@ -364,11 +372,6 @@ h1::after {
     background-color: white;
     transition: .3s;
     border-radius: 50%;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-[data-theme='dark'] .slider {
-    background-color: #374151;
 }
 
 input:checked + .slider {
@@ -468,7 +471,7 @@ input:checked + .slider:before {
 
 /* Settings page specific styles */
 .settings-card {
-    max-width: 800px;
+    max-width: 1200px;
     margin: 0 auto 1.5rem;
     background: var(--card-background);
     border-radius: 1rem;
@@ -949,47 +952,46 @@ input:checked + .slider:before {
     transform: rotate(3deg);
     transition: transform 0.2s;
     white-space: nowrap;
+    background: linear-gradient(135deg, var(--primary-color), #1d4ed8);
+    color: white;
 }
 
 .tip-badge:hover {
     transform: rotate(0deg) scale(1.05);
 }
 
-.tip-badge.weekly {
-    background: linear-gradient(135deg, #60a5fa, #3b82f6);
-    color: white;
-    z-index: 3;
-}
-
-.tip-badge.monthly {
-    background: linear-gradient(135deg, #34d399, #059669);
-    color: white;
-    z-index: 2;
-}
-
-.tip-badge.yearly {
-    background: linear-gradient(135deg, #fbbf24, #d97706);
-    color: white;
-    z-index: 1;
-}
-
-/* Dark mode adjustments aren't needed since we're using gradients with white text */
-
+/* Modal tip badges - keep detailed styling */
 .modal-tip-badges {
     display: flex;
     gap: 0.5rem;
-    margin-top: 0.5rem;
-    margin-bottom: 1rem;
+    margin: -0.5rem -0.5rem 1rem -0.5rem;
+    padding: 0.5rem;
     justify-content: center;
     flex-wrap: wrap;
+    background: var(--background-color);
+    border-radius: 0.5rem;
 }
 
 .modal-tip-badges .tip-badge {
-    transform: none;  /* Remove the rotation for modal badges */
+    font-size: 0.8rem;
+    padding: 0.35rem 0.75rem;
+    transform: none;
+}
+
+.modal-tip-badges .tip-badge.weekly {
+    background: linear-gradient(135deg, #60a5fa, #3b82f6);
+}
+
+.modal-tip-badges .tip-badge.monthly {
+    background: linear-gradient(135deg, #34d399, #059669);
+}
+
+.modal-tip-badges .tip-badge.yearly {
+    background: linear-gradient(135deg, #fbbf24, #d97706);
 }
 
 .modal-tip-badges .tip-badge:hover {
-    transform: scale(1.05);  /* Just scale on hover, no rotation */
+    transform: scale(1.05);
 }
 
 .option-group {
@@ -1508,4 +1510,228 @@ input:checked + .slider:before {
     .update-field .date-input {
         width: 100%;
     }
+}
+
+/* Associates drag-and-drop styles */
+.associates-container {
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 1rem;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.associates-column {
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.associates-column.hidden-column {
+    min-height: 60px;
+    height: 60px;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.associates-column.hidden-column .associates-list {
+    flex: 1;
+    min-height: 0;
+    height: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.associates-column.hidden-column .associates-list.show {
+    opacity: 1;
+    height: auto;
+    min-height: 60px;
+    visibility: visible;
+}
+
+.associates-list {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    min-height: 60px;
+    border: 2px dashed transparent;
+    border-radius: 0.5rem;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.associates-list.drag-over {
+    background-color: var(--background-color);
+    border-color: var(--primary-color);
+    border-style: dashed;
+}
+
+/* Grid layout for different columns */
+.associates-column.active-column {
+    grid-row: 1;
+    grid-column: 1 / -1;
+}
+
+.associates-column.bench-column,
+.associates-column.hidden-column {
+    grid-row: 2;
+}
+
+.associates-column.bench-column {
+    grid-column: 1 / 2;
+}
+
+.associates-column.hidden-column {
+    grid-column: 2 / 3;
+}
+
+/* Grid layouts for lists */
+.associates-column.bench-column .associates-list {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.associates-column.active-column .associates-list {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.associates-column.hidden-column .associates-list {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+/* Make the hidden container span full width when accepting drops */
+.associates-column.hidden-column.drag-over {
+    outline: 2px dashed var(--border-color);
+    outline-offset: -2px;
+}
+
+/* Hide cards in hidden container when toggle is off */
+.associates-column.hidden-column .associate-card {
+    opacity: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.associates-column.hidden-column .associates-list.show .associate-card {
+    opacity: 1;
+    height: 3rem;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    pointer-events: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .associates-container {
+        grid-template-rows: auto auto auto;
+    }
+    
+    .associates-column.bench-column,
+    .associates-column.hidden-column {
+        grid-column: 1 / -1;
+    }
+    
+    .associates-column.bench-column {
+        grid-row: 2;
+    }
+    
+    .associates-column.hidden-column {
+        grid-row: 3;
+    }
+    
+    .associates-column.active-column .associates-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .associates-column.bench-column .associates-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .associates-column.active-column .associates-list,
+    .associates-column.bench-column .associates-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+.associates-column.active-column .associate-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.column-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.associate-card {
+    width: 100%;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    background-color: var(--card-background);
+    transition: opacity 0.3s ease, transform 0.2s ease;
+    user-select: none;
+}
+
+.associate-card:hover {
+    border-color: var(--primary-color);
+}
+
+.associates-column.hidden-column {
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+}
+
+.view-hidden-button {
+    padding: 0.5rem 1rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.view-hidden-button:hover {
+    background: #1d4ed8;
+}
+
+.modal-associates-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.modal-associates-list .associate-card {
+    opacity: 1;
+    height: 3rem;
+    margin-bottom: 0.5rem;
+    pointer-events: auto;
+}
+
+/* Hide the actual hidden list but keep it in the DOM for data storage */
+.associates-column.hidden-column .associates-list {
+    display: none;
 }

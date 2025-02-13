@@ -1,11 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SommScore - Behind the Numbers</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% extends "base.html" %}
+
+{% block extra_head %}
     <style>
         .help-content .metric-section h3 {
             color: var(--text-primary);
@@ -159,13 +154,13 @@
             color: var(--primary-color);
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
     <div class="container">
         <header>
             <h1>Behind the Numbers</h1>
             <p class="subtitle">Your Guide to Understanding the Magic ✨</p>
-            <a href="{{ url_for('index') }}" class="back-link">← Back to Dashboard</a>
         </header>
 
         <div class="help-content">
@@ -335,7 +330,9 @@
             </div>
         </div>
     </div>
+{% endblock %}
 
+{% block extra_scripts %}
     <script>
         function applyTheme() {
             const darkMode = '{{ dark_mode }}' === 'true';
@@ -345,5 +342,4 @@
         // Apply theme immediately
         applyTheme();
     </script>
-</body>
-</html> 
+{% endblock %} 

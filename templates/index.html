@@ -87,32 +87,20 @@
             {% for rank in rankings %}
             <div class="card rank-item {% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% elif loop.index == 3 %}bronze{% endif %}">
                 <div class="tip-badges" {% if show_tip_badges != 'true' %}style="display: none;"{% endif %}>
-                    {% if tip_leaders.weekly and tip_leaders.weekly.name == rank.sales_associate %}
-                        <span class="tip-badge weekly">💰 Weekly Tips</span>
+                    {% if (tip_leaders.yearly and tip_leaders.yearly.name == rank.sales_associate) or
+                          (tip_leaders.monthly and tip_leaders.monthly.name == rank.sales_associate) or
+                          (tip_leaders.weekly and tip_leaders.weekly.name == rank.sales_associate) %}
+                        <span class="tip-badge">💰 Top Tips</span>
                     {% endif %}
-                    {% if tip_leaders.monthly and tip_leaders.monthly.name == rank.sales_associate %}
-                        <span class="tip-badge monthly">💰 Monthly Tips</span>
+                    {% if (revenue_leaders.yearly and revenue_leaders.yearly.name == rank.sales_associate) or
+                          (revenue_leaders.monthly and revenue_leaders.monthly.name == rank.sales_associate) or
+                          (revenue_leaders.weekly and revenue_leaders.weekly.name == rank.sales_associate) %}
+                        <span class="tip-badge">💵 Top Revenue</span>
                     {% endif %}
-                    {% if tip_leaders.yearly and tip_leaders.yearly.name == rank.sales_associate %}
-                        <span class="tip-badge yearly">💰 Overall Tips</span>
-                    {% endif %}
-                    {% if revenue_leaders.weekly and revenue_leaders.weekly.name == rank.sales_associate %}
-                        <span class="tip-badge weekly">💵 Weekly Revenue</span>
-                    {% endif %}
-                    {% if revenue_leaders.monthly and revenue_leaders.monthly.name == rank.sales_associate %}
-                        <span class="tip-badge monthly">💵 Monthly Revenue</span>
-                    {% endif %}
-                    {% if revenue_leaders.yearly and revenue_leaders.yearly.name == rank.sales_associate %}
-                        <span class="tip-badge yearly">💵 Overall Revenue</span>
-                    {% endif %}
-                    {% if club_leaders.weekly and club_leaders.weekly.name == rank.sales_associate %}
-                        <span class="tip-badge weekly">🎯 Weekly Clubs</span>
-                    {% endif %}
-                    {% if club_leaders.monthly and club_leaders.monthly.name == rank.sales_associate %}
-                        <span class="tip-badge monthly">🎯 Monthly Clubs</span>
-                    {% endif %}
-                    {% if club_leaders.yearly and club_leaders.yearly.name == rank.sales_associate %}
-                        <span class="tip-badge yearly">🎯 Overall Clubs</span>
+                    {% if (club_leaders.yearly and club_leaders.yearly.name == rank.sales_associate) or
+                          (club_leaders.monthly and club_leaders.monthly.name == rank.sales_associate) or
+                          (club_leaders.weekly and club_leaders.weekly.name == rank.sales_associate) %}
+                        <span class="tip-badge">🎯 Top Clubs</span>
                     {% endif %}
                 </div>
                 <div class="rank-header">

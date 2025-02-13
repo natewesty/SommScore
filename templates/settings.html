@@ -1,13 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SommScore Settings</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block extra_head %}
+    <style>
+        /* Add any settings-specific styles here */
+    </style>
+{% endblock %}
+
+{% block content %}
     <div class="container">
         <header>
             <h1>SommScore Settings</h1>
@@ -16,29 +15,9 @@
         <!-- Settings Card -->
         <div class="settings-card card">
             <h2 class="card-title">Settings</h2>
-            <form method="POST" action="{{ url_for('settings') }}">
-                <div class="settings-section">
-                    <h3>Active Associates</h3>
-                    <p class="section-description">Select which associates to display on the dashboard.</p>
-                    
-                    <div class="associates-grid">
-                        {% for associate in all_associates %}
-                        <div class="control-card">
-                            <div class="control-content">
-                                <div class="control-info">
-                                    <h3>{{ associate }}</h3>
-                                </div>
-                                <label class="switch">
-                                    <input type="checkbox" name="active_associates" value="{{ associate }}"
-                                           {% if associate in active_associates %}checked{% endif %}>
-                                    <span class="slider round"></span>
-                                </label>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-
+            
+            <!-- General Settings Form -->
+            <form id="generalSettingsForm" method="POST" action="{{ url_for('settings') }}">
                 <div class="settings-section">
                     <h3>Year Type</h3>
                     <p class="section-description">Choose between calendar year or fiscal year for calculations.</p>
@@ -152,7 +131,9 @@
             </div>
         </div>
     </div>
+{% endblock %}
 
+{% block extra_scripts %}
     <script>
     function toggleFiscalDates(show) {
         const fiscalDates = document.getElementById('fiscalDates');
@@ -220,6 +201,47 @@
             const result = await response.json();
             
             if (response.ok) {
+                // Update the associates lists with new data
+                const benchList = document.getElementById('benchList');
+                const activeList = document.getElementById('activeList');
+                const hiddenList = document.getElementById('hiddenList');
+                
+                // Clear existing lists
+                benchList.innerHTML = '';
+                activeList.innerHTML = '';
+                hiddenList.innerHTML = '';
+                
+                // Helper function to create associate card
+                function createAssociateCard(associate) {
+                    return `
+                        <div class="associate-card" draggable="true" data-associate="${associate}">
+                            <div class="rank-header">
+                                <span class="associate-name">${associate}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Populate active list
+                result.active_associates.forEach(associate => {
+                    activeList.insertAdjacentHTML('beforeend', createAssociateCard(associate));
+                });
+                
+                // Populate hidden list
+                result.hidden_associates.forEach(associate => {
+                    hiddenList.insertAdjacentHTML('beforeend', createAssociateCard(associate));
+                });
+                
+                // Populate bench list (associates that are neither active nor hidden)
+                result.all_associates.forEach(associate => {
+                    if (!result.active_associates.includes(associate) && !result.hidden_associates.includes(associate)) {
+                        benchList.insertAdjacentHTML('beforeend', createAssociateCard(associate));
+                    }
+                });
+                
+                // Reinitialize drag and drop for new cards
+                initializeDragAndDrop();
+                
                 alert(`Update completed successfully! ${result.message}`);
             } else {
                 alert(`Error: ${result.error}`);
@@ -231,6 +253,82 @@
             updateButton.disabled = false;
         }
     }
+    
+    // Function to initialize drag and drop functionality
+    function initializeDragAndDrop() {
+        const associateCards = document.querySelectorAll('.associate-card');
+        const associateLists = document.querySelectorAll('.associates-list');
+        
+        associateCards.forEach(card => {
+            card.addEventListener('dragstart', function(e) {
+                e.dataTransfer.setData('text/plain', this.dataset.associate);
+                this.classList.add('dragging');
+                setTimeout(() => {
+                    this.style.opacity = '0.5';
+                }, 0);
+            });
+
+            card.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                this.style.opacity = '1';
+                updateFormInputs();
+            });
+        });
+
+        associateLists.forEach(list => {
+            list.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+
+            list.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+
+            list.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                
+                const associateName = e.dataTransfer.getData('text/plain');
+                const card = document.querySelector(`.associate-card[data-associate="${associateName}"]`);
+                
+                if (card) {
+                    this.appendChild(card);
+                }
+            });
+        });
+    }
     </script>
-</body>
-</html> 
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get the general settings form
+        const generalSettingsForm = document.getElementById('generalSettingsForm');
+        
+        // Add submit handler for the general settings form
+        generalSettingsForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Get all the current values
+            const formData = new FormData(this);
+            
+            // Submit the form
+            fetch(this.action, {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                if (response.ok) {
+                    // Redirect to index page on success
+                    window.location.href = "{{ url_for('index') }}";
+                } else {
+                    console.error('Failed to save settings');
+                    alert('Failed to save settings. Please try again.');
+                }
+            }).catch(error => {
+                console.error('Error saving settings:', error);
+                alert('An error occurred while saving settings. Please try again.');
+            });
+        });
+    });
+    </script>
+{% endblock %} 
