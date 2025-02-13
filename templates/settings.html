@@ -201,48 +201,9 @@
             const result = await response.json();
             
             if (response.ok) {
-                // Update the associates lists with new data
-                const benchList = document.getElementById('benchList');
-                const activeList = document.getElementById('activeList');
-                const hiddenList = document.getElementById('hiddenList');
-                
-                // Clear existing lists
-                benchList.innerHTML = '';
-                activeList.innerHTML = '';
-                hiddenList.innerHTML = '';
-                
-                // Helper function to create associate card
-                function createAssociateCard(associate) {
-                    return `
-                        <div class="associate-card" draggable="true" data-associate="${associate}">
-                            <div class="rank-header">
-                                <span class="associate-name">${associate}</span>
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                // Populate active list
-                result.active_associates.forEach(associate => {
-                    activeList.insertAdjacentHTML('beforeend', createAssociateCard(associate));
-                });
-                
-                // Populate hidden list
-                result.hidden_associates.forEach(associate => {
-                    hiddenList.insertAdjacentHTML('beforeend', createAssociateCard(associate));
-                });
-                
-                // Populate bench list (associates that are neither active nor hidden)
-                result.all_associates.forEach(associate => {
-                    if (!result.active_associates.includes(associate) && !result.hidden_associates.includes(associate)) {
-                        benchList.insertAdjacentHTML('beforeend', createAssociateCard(associate));
-                    }
-                });
-                
-                // Reinitialize drag and drop for new cards
-                initializeDragAndDrop();
-                
                 alert(`Update completed successfully! ${result.message}`);
+                // Redirect to team setup page instead of trying to update lists
+                window.location.href = "{{ url_for('team_setup') }}";
             } else {
                 alert(`Error: ${result.error}`);
             }

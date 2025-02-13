@@ -278,12 +278,14 @@
         </header>
 
         <div class="settings-card card">
+            {% with %}
+            {% set counter = {'value': 1} %}
             <div class="associates-container">
                 <div class="associates-column active-column">
                     <h4>Active</h4>
                     <div class="associates-list active-list" id="activeList">
                         {% for associate in active_associates %}
-                        <div class="rank-item" draggable="true" data-associate="{{ associate }}">
+                        <div class="rank-item" draggable="true" data-associate-id="{{ counter.value }}">
                             <div class="rank-header">
                                 <span class="rank-number">👤</span>
                                 <span class="associate-name">{{ associate }}</span>
@@ -298,6 +300,7 @@
                                 </span>
                             </div>
                         </div>
+                        {% set _ = counter.update({'value': counter.value + 1}) %}
                         {% endfor %}
                     </div>
                 </div>
@@ -307,7 +310,7 @@
                     <div class="associates-list bench-list" id="benchList">
                         {% for associate in all_associates %}
                             {% if associate not in active_associates and associate not in hidden_associates %}
-                            <div class="rank-item" draggable="true" data-associate="{{ associate }}">
+                            <div class="rank-item" draggable="true" data-associate-id="{{ counter.value }}">
                                 <div class="rank-header">
                                     <span class="rank-number">👤</span>
                                     <span class="associate-name">{{ associate }}</span>
@@ -322,11 +325,12 @@
                                     </span>
                                 </div>
                                 <div class="badge-container">
-                                    <button type="button" class="hide-badge" onclick="hideAssociate('{{ associate }}')">
+                                    <button type="button" class="hide-badge" onclick="hideAssociate({{ counter.value }})">
                                         Hide
                                     </button>
                                 </div>
                             </div>
+                            {% set _ = counter.update({'value': counter.value + 1}) %}
                             {% endif %}
                         {% endfor %}
                     </div>
@@ -356,167 +360,113 @@
             <h2>Hidden Associates</h2>
             <div class="modal-associates-list" id="modalHiddenList">
                 {% for associate in hidden_associates %}
-                <div class="rank-item" draggable="true" data-associate="{{ associate }}">
+                <div class="rank-item" draggable="true" data-associate-id="{{ counter.value }}">
                     <div class="rank-header">
                         <span class="rank-number">👤</span>
                         <span class="associate-name">{{ associate }}</span>
                     </div>
-                    <button type="button" class="move-to-bench" onclick="moveToBench('{{ associate }}')">
+                    <button type="button" class="move-to-bench" onclick="moveToBench({{ counter.value }})">
                         Move to Bench
                     </button>
                 </div>
+                {% set _ = counter.update({'value': counter.value + 1}) %}
                 {% endfor %}
             </div>
         </div>
     </div>
+    {% endwith %}
 
     <script>
-    // Initialize associate stats from server data
+    // Initialize associate stats and mapping from server data
     const associateStats = JSON.parse('{{ associate_stats|tojson|safe }}');
+    const associateMapping = {};
+    
+    // Create ID mappings for all associates
+    let nextId = 1;
+    const allAssociates = [
+        ...{{ active_associates|tojson|safe }},
+        ...{{ all_associates|tojson|safe }}.filter(name => 
+            !{{ active_associates|tojson|safe }}.includes(name) && 
+            !{{ hidden_associates|tojson|safe }}.includes(name)
+        ),
+        ...{{ hidden_associates|tojson|safe }}
+    ];
+    
+    allAssociates.forEach(name => {
+        associateMapping[nextId] = name;
+        nextId++;
+    });
+    
+    // Reverse mapping for lookups
+    const associateIds = Object.entries(associateMapping).reduce((acc, [id, name]) => {
+        acc[name] = parseInt(id);
+        return acc;
+    }, {});
     
     document.addEventListener('DOMContentLoaded', function() {
         // Apply theme
         const darkMode = '{{ dark_mode }}' === 'true';
         document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
         
-        // Modal functionality
-        const hiddenModal = document.getElementById('hiddenModal');
+        // Initialize drag and drop functionality
+        initializeDragAndDrop();
         
-        window.showHiddenModal = function() {
-            hiddenModal.style.display = 'block';
-        }
+        // Initial form data update
+        updateFormData();
         
-        window.closeHiddenModal = function() {
+        // Sort active list on initial load
+        sortActiveList();
+    });
+
+    function submitForm() {
+        document.getElementById('setupForm').submit();
+    }
+    </script>
+
+    <script>
+    // Modal functionality
+    const hiddenModal = document.getElementById('hiddenModal');
+    
+    window.showHiddenModal = function() {
+        hiddenModal.style.display = 'block';
+    }
+    
+    window.closeHiddenModal = function() {
+        hiddenModal.style.display = 'none';
+    }
+    
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        if (event.target == hiddenModal) {
             hiddenModal.style.display = 'none';
         }
+    }
+
+    // Helper function to sort cards by SommScore
+    function sortActiveList() {
+        const activeList = document.getElementById('activeList');
+        const cards = Array.from(activeList.children);
         
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            if (event.target == hiddenModal) {
-                hiddenModal.style.display = 'none';
-            }
-        }
+        cards.sort((a, b) => {
+            const aName = associateMapping[a.dataset.associateId];
+            const bName = associateMapping[b.dataset.associateId];
+            const aScore = associateStats[aName]?.average_score || 0;
+            const bScore = associateStats[bName]?.average_score || 0;
+            return bScore - aScore; // Sort in descending order
+        });
+        
+        // Reappend cards in sorted order
+        cards.forEach(card => activeList.appendChild(card));
+    }
 
-        // Helper function to sort cards by SommScore
-        function sortActiveList() {
-            const activeList = document.getElementById('activeList');
-            const cards = Array.from(activeList.children);
-            
-            cards.sort((a, b) => {
-                const aScore = associateStats[a.dataset.associate]?.average_score || 0;
-                const bScore = associateStats[b.dataset.associate]?.average_score || 0;
-                return bScore - aScore; // Sort in descending order
-            });
-            
-            // Reappend cards in sorted order
-            cards.forEach(card => activeList.appendChild(card));
-        }
-
-        // Initialize drag and drop functionality
-        function initializeDragAndDrop() {
-            const associateCards = document.querySelectorAll('.rank-item');
-            const associateLists = document.querySelectorAll('.associates-list');
-            
-            associateCards.forEach(card => {
-                card.addEventListener('dragstart', function(e) {
-                    e.dataTransfer.setData('text/plain', this.dataset.associate);
-                    this.classList.add('dragging');
-                    setTimeout(() => {
-                        this.style.opacity = '0.5';
-                    }, 0);
-                });
-
-                card.addEventListener('dragend', function() {
-                    this.classList.remove('dragging');
-                    this.style.opacity = '1';
-                    updateFormData();
-                });
-            });
-
-            associateLists.forEach(list => {
-                list.addEventListener('dragover', function(e) {
-                    e.preventDefault();
-                    this.classList.add('drag-over');
-                });
-
-                list.addEventListener('dragleave', function() {
-                    this.classList.remove('drag-over');
-                });
-
-                list.addEventListener('drop', function(e) {
-                    e.preventDefault();
-                    this.classList.remove('drag-over');
-                    
-                    const associateName = e.dataTransfer.getData('text/plain');
-                    const card = document.querySelector(`.rank-item[data-associate="${associateName}"]`);
-                    
-                    if (card) {
-                        // Create new card with appropriate buttons based on the list
-                        const newCard = createAssociateCard(associateName, this.id === 'benchList');
-                        
-                        if (this.id === 'activeList') {
-                            // For active list, add the card and then sort
-                            this.appendChild(newCard);
-                            sortActiveList();
-                        } else {
-                            // For other lists, just add to the top
-                            this.insertBefore(newCard, this.firstChild);
-                        }
-                        
-                        card.remove();
-                    }
-                });
-            });
-        }
-
-        // Helper function to create associate cards
-        function createAssociateCard(associateName, isBench) {
-            const card = document.createElement('div');
-            card.className = 'rank-item';
-            card.draggable = true;
-            card.dataset.associate = associateName;
-            
-            const stats = associateStats[associateName] || {
-                average_score: 0,
-                diff_from_avg: 0,
-                days_counted: 0
-            };
-            
-            let cardContent = `
-                <div class="rank-header">
-                    <span class="rank-number">👤</span>
-                    <span class="associate-name">${associateName}</span>
-                </div>
-                <div class="score-row">
-                    <span class="average-score">
-                        ${stats.average_score.toFixed(1)}
-                        <span class="diff-from-avg ${stats.diff_from_avg > 0 ? 'positive' : 'negative'}">
-                            ${(stats.diff_from_avg > 0 ? '+' : '') + stats.diff_from_avg.toFixed(1)}
-                        </span>
-                        <span class="days-counted">(${stats.days_counted})</span>
-                    </span>
-                </div>
-            `;
-            
-            if (isBench) {
-                cardContent += `
-                    <div class="badge-container">
-                        <button type="button" class="hide-badge" onclick="hideAssociate('${associateName}')">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                                <line x1="1" y1="1" x2="23" y2="23"></line>
-                            </svg>
-                            Hide
-                        </button>
-                    </div>
-                `;
-            }
-            
-            card.innerHTML = cardContent;
-            
-            // Add drag event listeners
+    // Initialize drag and drop functionality
+    function initializeDragAndDrop() {
+        const associateCards = document.querySelectorAll('.rank-item');
+        const associateLists = document.querySelectorAll('.associates-list');
+        
+        associateCards.forEach(card => {
             card.addEventListener('dragstart', function(e) {
-                e.dataTransfer.setData('text/plain', this.dataset.associate);
+                e.dataTransfer.setData('text/plain', this.dataset.associateId);
                 this.classList.add('dragging');
                 setTimeout(() => {
                     this.style.opacity = '0.5';
@@ -528,88 +478,226 @@
                 this.style.opacity = '1';
                 updateFormData();
             });
-            
-            return card;
-        }
+        });
 
-        // Function to hide an associate
-        window.hideAssociate = function(associateName) {
-            const card = document.querySelector(`.rank-item[data-associate="${associateName}"]`);
-            if (card) {
-                const modalHiddenList = document.getElementById('modalHiddenList');
+        associateLists.forEach(list => {
+            list.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+
+            list.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+
+            list.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
                 
-                // Create new card for modal with move to bench button
-                const modalCard = document.createElement('div');
-                modalCard.className = 'rank-item';
-                modalCard.draggable = true;
-                modalCard.dataset.associate = associateName;
-                modalCard.innerHTML = `
-                    <div class="rank-header">
-                        <span class="rank-number">👤</span>
-                        <span class="associate-name">${associateName}</span>
-                    </div>
-                    <button type="button" class="move-to-bench" onclick="moveToBench('${associateName}')">
-                        Move to Bench
-                    </button>
-                `;
+                const associateId = e.dataTransfer.getData('text/plain');
+                const card = document.querySelector(`.rank-item[data-associate-id="${associateId}"]`);
                 
-                modalHiddenList.appendChild(modalCard);
-                card.remove();
-                updateFormData();
-            }
-        }
+                if (card) {
+                    // Create new card with appropriate buttons based on the list
+                    const newCard = createAssociateCard(associateId, this.id === 'benchList');
+                    
+                    if (this.id === 'activeList') {
+                        // For active list, add the card and then sort
+                        this.appendChild(newCard);
+                        sortActiveList();
+                    } else {
+                        // For other lists, just add to the top
+                        this.insertBefore(newCard, this.firstChild);
+                    }
+                    
+                    card.remove();
+                }
+            });
+        });
+    }
 
-        // Update form data function
-        function updateFormData() {
-            const activeList = document.getElementById('activeList');
-            const benchList = document.getElementById('benchList');
-            const modalHiddenList = document.getElementById('modalHiddenList');
-            
-            const activeAssociates = Array.from(activeList.children).map(card => 
-                card.dataset.associate
-            );
-            const hiddenAssociates = Array.from(modalHiddenList.children).map(card => 
-                card.dataset.associate
-            );
-            
-            document.getElementById('activeAssociates').value = JSON.stringify(activeAssociates);
-            document.getElementById('hiddenAssociates').value = JSON.stringify(hiddenAssociates);
-            
-            document.getElementById('submitButton').disabled = activeAssociates.length === 0;
-        }
-
-        // Initialize drag and drop
-        initializeDragAndDrop();
+    // Helper function to create associate cards
+    function createAssociateCard(associateId, isBench) {
+        const card = document.createElement('div');
+        card.className = 'rank-item';
+        card.draggable = true;
+        card.dataset.associateId = associateId;
         
-        // Initial form data update
-        updateFormData();
-
-        // Function to move associate back to bench
-        window.moveToBench = function(associateName) {
-            const modalCard = document.querySelector(`#modalHiddenList .rank-item[data-associate="${associateName}"]`);
-            const benchList = document.getElementById('benchList');
-            
-            if (modalCard && benchList) {
-                // Create new card for bench with hide badge
-                const benchCard = createAssociateCard(associateName, true);
-                
-                // Add to bench list
-                benchList.insertBefore(benchCard, benchList.firstChild);
-                
-                // Remove from modal
-                modalCard.remove();
-                
-                // Update form data
-                updateFormData();
-            }
+        const associateName = associateMapping[associateId];
+        const stats = associateStats[associateName] || {
+            average_score: 0,
+            diff_from_avg: 0,
+            days_counted: 0
+        };
+        
+        let cardContent = `
+            <div class="rank-header">
+                <span class="rank-number">👤</span>
+                <span class="associate-name">${escapeHtml(associateName)}</span>
+            </div>
+            <div class="score-row">
+                <span class="average-score">
+                    ${stats.average_score.toFixed(1)}
+                    <span class="diff-from-avg ${stats.diff_from_avg > 0 ? 'positive' : 'negative'}">
+                        ${(stats.diff_from_avg > 0 ? '+' : '') + stats.diff_from_avg.toFixed(1)}
+                    </span>
+                    <span class="days-counted">(${stats.days_counted})</span>
+                </span>
+            </div>
+        `;
+        
+        if (isBench) {
+            cardContent += `
+                <div class="badge-container">
+                    <button type="button" class="hide-badge" onclick="hideAssociate(${associateId})">
+                        Hide
+                    </button>
+                </div>
+            `;
         }
+        
+        card.innerHTML = cardContent;
+        
+        // Add drag event listeners
+        card.addEventListener('dragstart', function(e) {
+            e.dataTransfer.setData('text/plain', this.dataset.associateId);
+            this.classList.add('dragging');
+            setTimeout(() => {
+                this.style.opacity = '0.5';
+            }, 0);
+        });
 
-        // Sort active list on initial load
-        sortActiveList();
-    });
+        card.addEventListener('dragend', function() {
+            this.classList.remove('dragging');
+            this.style.opacity = '1';
+            updateFormData();
+        });
+        
+        return card;
+    }
 
-    function submitForm() {
-        document.getElementById('setupForm').submit();
+    // Helper function to escape HTML special characters
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.textContent;
+    }
+
+    // Function to hide an associate
+    window.hideAssociate = function(associateId) {
+        console.log('Hiding associate:', associateId);
+        
+        const card = document.querySelector(`.rank-item[data-associate-id="${associateId}"]`);
+        const modalHiddenList = document.getElementById('modalHiddenList');
+        
+        if (!card || !modalHiddenList) {
+            console.error('Required elements not found:', {
+                card: !!card,
+                modalHiddenList: !!modalHiddenList
+            });
+            return;
+        }
+        
+        try {
+            // Create new card for modal with move to bench button
+            const modalCard = document.createElement('div');
+            modalCard.className = 'rank-item';
+            modalCard.draggable = true;
+            modalCard.dataset.associateId = associateId;
+            
+            const associateName = associateMapping[associateId];
+            modalCard.innerHTML = `
+                <div class="rank-header">
+                    <span class="rank-number">👤</span>
+                    <span class="associate-name">${escapeHtml(associateName)}</span>
+                </div>
+                <button type="button" class="move-to-bench" onclick="moveToBench(${associateId})">
+                    Move to Bench
+                </button>
+            `;
+            
+            // Add drag event listeners to new card
+            modalCard.addEventListener('dragstart', function(e) {
+                e.dataTransfer.setData('text/plain', this.dataset.associateId);
+                this.classList.add('dragging');
+                setTimeout(() => {
+                    this.style.opacity = '0.5';
+                }, 0);
+            });
+
+            modalCard.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                this.style.opacity = '1';
+                updateFormData();
+            });
+            
+            // Add to hidden list and remove from bench
+            modalHiddenList.appendChild(modalCard);
+            card.remove();
+            
+            // Update form data
+            updateFormData();
+            
+            console.log('Successfully hid associate:', associateId);
+        } catch (error) {
+            console.error('Error hiding associate:', error);
+        }
+    }
+
+    // Update form data function
+    function updateFormData() {
+        const activeList = document.getElementById('activeList');
+        const modalHiddenList = document.getElementById('modalHiddenList');
+        
+        const activeAssociates = Array.from(activeList.children).map(card => 
+            associateMapping[card.dataset.associateId]
+        );
+        const hiddenAssociates = Array.from(modalHiddenList.children).map(card => 
+            associateMapping[card.dataset.associateId]
+        );
+        
+        console.log('Updating form data:', {
+            activeAssociates,
+            hiddenAssociates
+        });
+        
+        document.getElementById('activeAssociates').value = JSON.stringify(activeAssociates);
+        document.getElementById('hiddenAssociates').value = JSON.stringify(hiddenAssociates);
+        
+        document.getElementById('submitButton').disabled = activeAssociates.length === 0;
+    }
+
+    // Function to move associate back to bench
+    window.moveToBench = function(associateId) {
+        console.log('Moving to bench:', associateId);
+        const modalCard = document.querySelector(`#modalHiddenList .rank-item[data-associate-id="${associateId}"]`);
+        const benchList = document.getElementById('benchList');
+        
+        if (!modalCard || !benchList) {
+            console.error('Required elements not found:', {
+                modalCard: !!modalCard,
+                benchList: !!benchList
+            });
+            return;
+        }
+        
+        try {
+            // Create new card for bench with hide badge
+            const benchCard = createAssociateCard(associateId, true);
+            
+            // Add to bench list
+            benchList.insertBefore(benchCard, benchList.firstChild);
+            
+            // Remove from modal
+            modalCard.remove();
+            
+            // Update form data
+            updateFormData();
+            
+            console.log('Successfully moved to bench:', associateId);
+        } catch (error) {
+            console.error('Error moving to bench:', error);
+        }
     }
     </script>
 </body>
