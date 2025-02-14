@@ -344,7 +344,7 @@ def process_setup(year_type, start_date, progress_dict):
         start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
         
         # Reference period should be exactly one year before the start date
-        ref_start_date = start_date_obj - timedelta(days=365)
+        ref_start_date = start_date_obj - timedelta(days=366)
         ref_end_date = start_date_obj - timedelta(days=1)  # End the day before the start date
         
         logger.info(f"Calculated reference period: {ref_start_date.strftime('%Y-%m-%d')} to {ref_end_date.strftime('%Y-%m-%d')}")
@@ -355,7 +355,8 @@ def process_setup(year_type, start_date, progress_dict):
         
         # Ingest orders for reference period
         orders_added = init_order_ingest(
-            ref_start_date.strftime('%Y-%m-%d')
+            ref_start_date.strftime('%Y-%m-%d'),
+            ref_end_date.strftime('%Y-%m-%d')
         )
         logger.info(f"Reference period orders added: {orders_added}")
         
@@ -364,7 +365,8 @@ def process_setup(year_type, start_date, progress_dict):
         
         # Ingest clubs for reference period
         clubs_added = init_club_ingest(
-            ref_start_date.strftime('%Y-%m-%d')
+            ref_start_date.strftime('%Y-%m-%d'),
+            ref_end_date.strftime('%Y-%m-%d')
         )
         logger.info(f"Reference period clubs added: {clubs_added}")
         
