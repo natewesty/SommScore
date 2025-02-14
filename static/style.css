@@ -13,7 +13,7 @@
     --background-color: #0f172a;
     --card-background: #1e293b;
     --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
+    --text-secondary: #7a8595;
     --border-color: #334155;
 }
 
@@ -44,6 +44,7 @@ header {
     display: flex;
     flex-direction: column;
     align-items: center;
+    
 }
 
 h1 {
@@ -59,16 +60,6 @@ h1 {
         2px 2px 4px rgba(0, 0, 0, 0.1),
         -1px -1px 0 rgba(255, 255, 255, 0.2);
     letter-spacing: 1px;
-}
-
-h1::before {
-    content: '🍷';
-    position: absolute;
-    font-size: 1.5rem;
-    left: -2.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    -webkit-text-fill-color: initial;
 }
 
 h1::after {
@@ -747,8 +738,30 @@ input:checked + .slider:before {
 }
 
 .metric-section li {
+    color: #475569;
+    padding-left: 2.0rem;
     margin-bottom: 0.5rem;
     line-height: 1.6;
+}
+
+.metric-section ol {
+    color: #475569;
+    list-style-position: outside;
+    padding-left: 2.5rem;
+    margin-bottom: 1rem;
+    counter-reset: list-counter;
+}
+
+.metric-section ol li {
+    position: relative;
+    padding-left: 0.5rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+.metric-section ol li::marker {
+    color: #475569;
+    font-weight: 500;
 }
 
 .formula {

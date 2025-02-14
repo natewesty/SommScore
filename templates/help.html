@@ -55,22 +55,12 @@
             transform: rotate(3deg);
             transition: transform 0.2s;
             white-space: nowrap;
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            color: white;
         }
 
         .sample-badge:hover {
             transform: rotate(0deg) scale(1.05);
-        }
-
-        .sample-badge:first-child {
-            background: linear-gradient(135deg, #34d399, #059669);
-            color: white;
-            z-index: 2;
-        }
-
-        .sample-badge:last-child {
-            background: linear-gradient(135deg, #60a5fa, #3b82f6);
-            color: white;
-            z-index: 3;
         }
 
         .sample-header {
@@ -165,7 +155,7 @@
 
         <div class="help-content">
             <div class="metric-section">
-                <h2>📊 Understanding SommScore</h2>
+                <h2>✅ Understanding SommScore</h2>
                 <p>Your SommScore is a daily performance metric that measures how well you're doing compared to your team's performance each day. It's calculated on a 0-100 scale, combining your sales performance and club signup achievements.</p>
 
                 <h2>✨ How It's Calculated</h2>
@@ -187,29 +177,53 @@
                 </ul>
 
                 <h2>🏆 Performance Badges</h2>
-                <p>These badges showcase your achievements in three key areas:</p>
+                <p>Performance badges showcase achievements in three categories, with detailed time periods visible in the statistics view:</p>
+                
+                <h3>Main View Badges</h3>
                 <ul>
-                    <li>Tips Leader: Outstanding customer satisfaction</li>
-                    <li>Sales Leader: Top total value sold</li>
-                    <li>Club Leader: Excellence in membership growth</li>
+                    <li><strong>💰 Top Tips:</strong> Outstanding performance in tips across all time periods</li>
+                    <li><strong>💵 Top Revenue:</strong> Excellence in overall sales performance</li>
+                    <li><strong>🎯 Top Clubs:</strong> Leadership in club membership growth</li>
                 </ul>
 
-                <h2>📈 Team Performance Grade</h2>
+                <div class="sample-card">
+                    <div class="sample-badges">
+                        <span class="sample-badge">💰 Top Tips</span>
+                        <span class="sample-badge">💵 Top Revenue</span>
+                        <span class="sample-badge">🎯 Top Clubs</span>
+                    </div>
+                    <div class="sample-header">
+                        <span class="rank-number">🏆</span>
+                        <span class="sample-name">Jerry Garcia</span>
+                    </div>
+                    <div class="sample-score">
+                        <span class="sample-avg">95.2
+                            <span class="sample-diff">+18.4</span>
+                            <span class="sample-days">(45)</span>
+                        </span>
+                    </div>
+                </div>
+
+                <h3>Detailed Statistics View</h3>
+                <p>Clicking on an associate's name reveals detailed time-period badges:</p>
+                <ul>
+                    <li><strong>Weekly Badges:</strong> Top performance in the current week</li>
+                    <li><strong>Monthly Badges:</strong> Leading position for the current month</li>
+                    <li><strong>Overall Badges:</strong> Year-to-date leadership</li>
+                </ul>
+
+                <ul class="explanation-list">
+                    <li><strong>Interactive Display:</strong> Click any associate's name to view their detailed performance statistics and time-period badges</li>
+                    <li><strong>Dynamic Updates:</strong> Badges are automatically awarded and updated as performance metrics change</li>
+                    <li><strong>Visual Recognition:</strong> Main badges appear prominently on performance cards for quick recognition</li>
+                </ul>
+
+                <h2>💪 Team Performance Grade</h2>
                 <p>The team's overall grade combines three elements:</p>
                 <ul>
                     <li>40% - Average team SommScore</li>
                     <li>40% - Sales performance</li>
                     <li>20% - Club signups</li>
-                </ul>
-
-                <h2>Individual Statistics</h2>
-                <p>Your personal dashboard shows:</p>
-                <ul>
-                    <li>Average Score: Your overall performance metric</li>
-                    <li>Top Performer Rate: How often you lead the pack</li>
-                    <li>High Performance Days: Your scores above 75</li>
-                    <li>Recent Averages: 7-day and month-to-date metrics</li>
-                    <li>Team Contribution: Your impact on overall progress towards team goals</li>
                 </ul>
 
                 <h2>💡 Keys to Success</h2>
@@ -223,32 +237,33 @@
             </div>
 
             <div class="metric-section">
-                <h2>📊 Your SommScore Card</h2>
+                <h2>📇 Your SommScore Card</h2>
                 <p>Here's a detailed breakdown of what you see on your performance card:</p>
                 
                 <div class="sample-card">
                     <div class="sample-badges">
-                        <span class="sample-badge">💰 Monthly Tips</span>
-                        <span class="sample-badge">🎯 Weekly Clubs</span>
+                        <span class="sample-badge">💰 Top Tips</span>
+                        <span class="sample-badge">💵 Top Revenue</span>
+                        <span class="sample-badge">🎯 Top Clubs</span>
                     </div>
                     <div class="sample-header">
                         <span class="sample-rank">🏆</span>
                         <span class="sample-name">Jerry Garcia</span>
                     </div>
                     <div class="sample-score">
-                        <span class="sample-avg">85.5
-                            <span class="sample-diff">+12.3</span>
-                            <span class="sample-days">(24)</span>
+                        <span class="sample-avg">95.2
+                            <span class="sample-diff">+18.4</span>
+                            <span class="sample-days">(45)</span>
                         </span>
                     </div>
                 </div>
 
                 <ul class="explanation-list">
-                    <li><strong>Achievement Badges:</strong> Shows your current achievements. In this example, the associate leads in Monthly Tips and Weekly Club signups.</li>
+                    <li><strong>Achievement Badges:</strong> Shows your current achievements. In this example, the associate has earned a Tips, Revenue, and Clubs badge.</li>
                     <li><strong>Rank Symbol:</strong> 🏆 for 1st, 🥈 for 2nd, 🥉 for 3rd, or numerical rank for others.</li>
-                    <li><strong>Main Score (85.5):</strong> Your average SommScore for the current period, combining sales performance, club signups, and tips.</li>
-                    <li><strong>Score Difference (+12.3):</strong> How your score compares to the team average. Green indicates above average, red would indicate below.</li>
-                    <li><strong>Days Count (24):</strong> The number of days you've worked in the current period.</li>
+                    <li><strong>Main Score (95.2):</strong> Your average SommScore for the current period, combining sales performance, club signups, and tips.</li>
+                    <li><strong>Score Difference (+18.4):</strong> How your score compares to the team average. Green indicates above average, red would indicate below.</li>
+                    <li><strong>Days Count (45):</strong> The number of days you've worked in the current period.</li>
                 </ul>
 
                 <p><strong>Pro Tip:</strong> Click on your name to see detailed statistics including your 7-day average, month-to-date performance, and contribution percentages to team totals.</p>
@@ -256,6 +271,12 @@
 
             <div class="metric-section">
                 <h2>📈 Performance Metrics</h2>
+                <h3>Year Types</h3>
+                <p>Two ways to track annual performance:</p>
+                <ul>
+                    <li><strong>Calendar Year:</strong> January 1 - December 31</li>
+                    <li><strong>Fiscal Year:</strong> Customizable 12-month period (e.g., July 1 - June 30)</li>
+                </ul>
                 <h3>Daily Score Calculation</h3>
                 <p>Your daily score is calculated in these steps:</p>
                 <ol>
@@ -269,6 +290,15 @@
                     <li>Add club signup bonuses (50 points each)</li>
                     <li>Normalize to 0-100 scale relative to team performance</li>
                 </ol>
+
+                <h3>Team Setup Impact</h3>
+                <p>Changes to team composition affect calculations:</p>
+                <ul>
+                    <li>Team averages only include Active associates</li>
+                    <li>Rankings and comparisons are based on Active roster</li>
+                    <li>Historical data maintains integrity by using Active status from each date</li>
+                    <li>Status changes are reflected in real-time for new calculations</li>
+                </ul>
 
                 <h3>Average Score</h3>
                 <p>Your overall performance indicator:</p>
@@ -299,7 +329,13 @@
             </div>
 
             <div class="metric-section">
-                <h2>⏱️ Time Period Views</h2>
+                <h2>📊 Trend Analysis</h2>
+                <p>View performance data in different formats:</p>
+                <ul>
+                    <li><strong>Daily Scores:</strong> Individual day-by-day performance</li>
+                    <li><strong>Cumulative Average:</strong> Running average that shows long-term trends</li>
+                </ul>
+                <h3>Time Period Views</h3>
                 <p>Different ways to analyze performance:</p>
                 <ul>
                     <li><strong>7-Day View:</strong> Recent performance trends</li>
@@ -312,20 +348,30 @@
             </div>
 
             <div class="metric-section">
-                <h2>📅 Year Types</h2>
-                <p>Two ways to track annual performance:</p>
-                <ul>
-                    <li><strong>Calendar Year:</strong> January 1 - December 31</li>
-                    <li><strong>Fiscal Year:</strong> Customizable 12-month period (e.g., July 1 - June 30)</li>
-                </ul>
-            </div>
+                <h2>👥 Team Management</h2>
+                <p>The team management system allows you to organize and track associate performance effectively:</p>
 
-            <div class="metric-section">
-                <h2>📊 Trend Analysis</h2>
-                <p>View performance data in different formats:</p>
+                <h3>Associate Status Types</h3>
                 <ul>
-                    <li><strong>Daily Scores:</strong> Individual day-by-day performance</li>
-                    <li><strong>Cumulative Average:</strong> Running average that shows long-term trends</li>
+                    <li><strong>Active Associates:</strong> Currently working team members whose performance is tracked and included in team calculations</li>
+                    <li><strong>Benched Associates:</strong> Team members temporarily not included in performance tracking (e.g., on leave, training)</li>
+                    <li><strong>Hidden Associates:</strong> Members who are archived but can be restored if needed</li>
+                </ul>
+
+                <h3>Team Organization Features</h3>
+                <ul>
+                    <li><strong>Drag and Drop:</strong> Easily move associates between Active and Bench status</li>
+                    <li><strong>Performance-Based Sorting:</strong> Active associates are automatically sorted by their SommScore</li>
+                    <li><strong>Quick Actions:</strong> Hide/Restore associates with one click</li>
+                    <li><strong>Bulk Management:</strong> View and manage all hidden associates in one place</li>
+                </ul>
+
+                <h3>Impact on Calculations</h3>
+                <ul>
+                    <li>Only Active associates contribute to team averages and rankings</li>
+                    <li>Bench and Hidden associates maintain their historical data</li>
+                    <li>Status changes take effect immediately for future calculations</li>
+                    <li>Historical team averages are recalculated based on who was Active on each date</li>
                 </ul>
             </div>
         </div>

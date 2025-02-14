@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 import os
 import json
@@ -9,6 +9,24 @@ def get_active_associates(conn):
     result = conn.execute('SELECT value FROM settings WHERE key = "active_associates"').fetchone()
     return json.loads(result['value']) if result else []
 
+def calculate_experience_bonus(days_worked):
+    """
+    Calculate experience bonus percentage based on days worked.
+    Scales linearly from 0% to 20% over 365 days.
+    
+    Args:
+        days_worked: Number of days the associate has worked
+        
+    Returns:
+        Float between 0.0 and 0.2 representing the bonus multiplier
+    """
+    max_bonus = 0.20  # 20% maximum bonus
+    days_for_max = 365  # Days required for maximum bonus
+    
+    # Calculate bonus percentage (capped at max_bonus)
+    bonus = min(days_worked / days_for_max * max_bonus, max_bonus)
+    return bonus
+
 def calculate_somm_scores(db_path, existing_conn=None, start_date=None):
     """
     Calculates daily SommScores and updates the somm_scores table.
@@ -16,6 +34,7 @@ def calculate_somm_scores(db_path, existing_conn=None, start_date=None):
     - Daily sales performance relative to team
     - Club signup bonuses
     - Day-specific weighting
+    - Experience-based bonus scaling
     
     Args:
         db_path: Path to the SQLite database
@@ -50,7 +69,28 @@ def calculate_somm_scores(db_path, existing_conn=None, start_date=None):
         # Get today's date for the current period end date
         today = datetime.now().strftime('%Y-%m-%d')
 
-        # Get current year's orders (from start_date to today)
+        # Calculate days worked for each associate up to each date
+        cursor.execute("""
+            SELECT DISTINCT
+                date(order_paid_date) as work_date,
+                sales_associate,
+                (
+                    SELECT COUNT(DISTINCT date(o2.order_paid_date))
+                    FROM orders o2
+                    WHERE o2.sales_associate = o1.sales_associate
+                    AND date(o2.order_paid_date) <= date(o1.order_paid_date)
+                ) as days_worked
+            FROM orders o1
+            WHERE date(order_paid_date) >= ? AND date(order_paid_date) <= ?
+            ORDER BY work_date, sales_associate
+        """, (start_date, today))
+        days_worked_data = cursor.fetchall()
+        
+        # Store days worked data: { (work_date, associate): days_worked }
+        days_worked_dict = {(row['work_date'], row['sales_associate']): row['days_worked'] 
+                          for row in days_worked_data}
+
+        # Get current year's orders
         cursor.execute("""
             SELECT
                 date(order_paid_date) AS work_date,
@@ -63,7 +103,7 @@ def calculate_somm_scores(db_path, existing_conn=None, start_date=None):
         """, (start_date, today))
         current_year_data = cursor.fetchall()
         
-        # Store current year's data: { work_date: { sales_associate: (total_revenue, order_count) } }
+        # Store current year's data
         current_year_dict = defaultdict(dict)
         for row in current_year_data:
             wdate = row['work_date']
@@ -90,12 +130,9 @@ def calculate_somm_scores(db_path, existing_conn=None, start_date=None):
         # Get active associates from database
         active_associates = get_active_associates(conn)
 
-        # Define day weights (1.0 for weekends, 1.5 for weekdays)
         def get_day_weight(date_str):
             date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-            # Get day of week (0 = Monday, 6 = Sunday)
             dow = date_obj.weekday()
-            # Return weight based on day
             return 1.0 if dow in [4, 5, 6] else 1.5  # 1.0 for Fri-Sun, 1.5 for Mon-Thu
 
         scores_by_date = defaultdict(list)
@@ -126,15 +163,20 @@ def calculate_somm_scores(db_path, existing_conn=None, start_date=None):
             for associate in working_associates:
                 revenue, _ = associates_data[associate]
                 
+                # Get days worked and calculate experience bonus
+                days_worked = days_worked_dict.get((current_date, associate), 0)
+                experience_bonus = calculate_experience_bonus(days_worked)
+                
                 # Base score from revenue performance relative to team average
                 revenue_score = ((revenue - avg_revenue) / avg_revenue) * 50 if avg_revenue > 0 else 0
                 
-                # Apply day weight
-                daily_score = revenue_score * day_weight
+                # Apply day weight and experience bonus to revenue score
+                daily_score = revenue_score * day_weight * (1 + experience_bonus)
                 
-                # Add club signup bonus (50 points per signup)
+                # Add club signup bonus with experience bonus
                 signup_count = club_dict.get(current_date, {}).get(associate, 0)
-                daily_score += signup_count * 50
+                club_bonus = signup_count * 50 * (1 + experience_bonus)
+                daily_score += club_bonus
                 
                 scores_by_date[current_date].append((associate, daily_score))
 
@@ -160,10 +202,9 @@ def calculate_somm_scores(db_path, existing_conn=None, start_date=None):
                 
                 somm_insert_rows.append((wdate, associate, normalized_score))
 
-        # After the insert, add this print statement
         print(f"Skipped {skipped_entries} entries due to missing sales associate.")
 
-        # Clear existing records for these dates to avoid duplicates
+        # Clear existing records for these dates
         unique_dates = list({ row[0] for row in somm_insert_rows })
         cursor.execute(f"""
             DELETE FROM somm_scores
@@ -180,27 +221,41 @@ def calculate_somm_scores(db_path, existing_conn=None, start_date=None):
 
         print(f"Inserted/updated {len(somm_insert_rows)} daily SommScores.")
 
-        # Calculate and display aggregated YTD results
+        # Calculate and display aggregated YTD results with experience info
         cursor.execute("""
+            WITH experience_data AS (
+                SELECT 
+                    sales_associate,
+                    COUNT(DISTINCT date(order_paid_date)) as total_days_worked
+                FROM orders
+                WHERE sales_associate IN ({})
+                GROUP BY sales_associate
+            )
             SELECT
-                sales_associate,
+                s.sales_associate,
                 COUNT(*) AS days_counted,
                 ROUND(AVG(daily_score), 2) AS average_somm_score,
                 ROUND(MIN(daily_score), 2) AS min_score,
-                ROUND(MAX(daily_score), 2) AS max_score
-            FROM somm_scores
-            WHERE sales_associate IN ({})
-            GROUP BY sales_associate
+                ROUND(MAX(daily_score), 2) AS max_score,
+                e.total_days_worked
+            FROM somm_scores s
+            JOIN experience_data e ON s.sales_associate = e.sales_associate
+            WHERE s.sales_associate IN ({})
+            GROUP BY s.sales_associate
             ORDER BY average_somm_score DESC
-        """.format(','.join(['?'] * len(active_associates))), list(active_associates))
+        """.format(','.join(['?'] * len(active_associates)), 
+                  ','.join(['?'] * len(active_associates))), 
+        list(active_associates) * 2)
         aggregate_results = cursor.fetchall()
 
         print("\n----- Normalized SommScores (0-100 scale) -----")
         for row in aggregate_results:
+            experience_bonus = calculate_experience_bonus(row['total_days_worked']) * 100
             print(f"Associate: {row['sales_associate']}, "
                   f"Days Counted: {row['days_counted']}, "
                   f"Avg Score: {row['average_somm_score']:.1f}, "
-                  f"Range: {row['min_score']:.1f}-{row['max_score']:.1f}")
+                  f"Range: {row['min_score']:.1f}-{row['max_score']:.1f}, "
+                  f"Experience Bonus: {experience_bonus:.1f}%")
 
     except Exception as e:
         print(f"Error calculating scores: {e}")
