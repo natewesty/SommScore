@@ -85,6 +85,20 @@ def init_database(db_path=None):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_scores_date ON somm_scores(score_date)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_ref_date ON ref_table(date)")
         
+        # Initialize default settings
+        cursor.execute("""
+        INSERT OR IGNORE INTO settings (key, value)
+        VALUES 
+            ('timezone', 'UTC'),
+            ('year_type', 'calendar'),
+            ('active_associates', '[]'),
+            ('hidden_associates', '[]'),
+            ('fiscal_year_start', '07-01'),
+            ('fiscal_year_end', '06-30'),
+            ('dark_mode', 'true'),
+            ('show_tip_badges', 'true')
+        """)
+        
         # Commit all changes
         conn.commit()
         logger.info(f"Database initialized successfully at {db_path}")

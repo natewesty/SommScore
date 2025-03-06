@@ -7,15 +7,76 @@ import os
 from init_db import init_database
 import logging
 import threading
+import time
 from queue import Queue
 from init.init_order_ingest import init_order_ingest
 from init.init_club_ingest import init_club_ingest
+from daily_update import update_data
+import schedule
+from utils.timezone_helper import get_timezones_by_region, get_current_timezone, validate_timezone, convert_to_utc
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Global scheduler thread
+scheduler_thread = None
+
+def run_scheduler():
+    """Run the scheduler in a background thread."""
+    while True:
+        try:
+            schedule.run_pending()
+            time.sleep(60)
+        except Exception as e:
+            logger.error(f"Error in scheduler: {e}")
+            time.sleep(300)
+
+def init_scheduler():
+    """Initialize the daily update scheduler."""
+    global scheduler_thread
+    
+    # Clear existing jobs
+    schedule.clear()
+    
+    try:
+        # Get timezone from settings
+        db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
+        timezone = get_current_timezone(db_path)
+        
+        # Convert 1 AM local time to UTC
+        utc_time = convert_to_utc("01:00", timezone)
+        logger.info(f"Scheduling daily update for {utc_time} UTC (1:00 AM {timezone})")
+        
+        # Schedule the update
+        schedule.every().day.at(utc_time).do(update_data)
+        
+        # Start scheduler thread if not running
+        if scheduler_thread is None or not scheduler_thread.is_alive():
+            scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+            scheduler_thread.start()
+            logger.info("Scheduler thread started")
+            
+    except Exception as e:
+        logger.error(f"Error initializing scheduler: {e}")
+        logger.info("Falling back to UTC for scheduler")
+        schedule.every().day.at("01:00").do(update_data)
+
+def restart_scheduler():
+    """Restart the scheduler with updated timezone."""
+    global scheduler_thread
+    
+    # Clear existing jobs
+    schedule.clear()
+    
+    # Stop existing thread if running
+    if scheduler_thread and scheduler_thread.is_alive():
+        scheduler_thread = None
+    
+    # Initialize new scheduler
+    init_scheduler()
 
 # Add global variables for tracking setup progress
 setup_progress = {
@@ -50,7 +111,8 @@ def init_settings_table():
             ('fiscal_year_start', '07-01'),
             ('fiscal_year_end', '06-30'),
             ('dark_mode', 'true'),
-            ('show_tip_badges', 'true')
+            ('show_tip_badges', 'true'),
+            ('timezone', 'UTC')
     ''')
     conn.commit()
     conn.close()
@@ -326,7 +388,7 @@ def normalize_ref_data(conn, ref_start_date, ref_end_date):
     for stat in normalization_stats:
         print(f"{stat['mon']:5d} | {stat['total_days']:10d} | {stat['days_with_data']:13d} | ${stat['avg_earnings']:11.2f}")
 
-def process_setup(year_type, start_date, progress_dict):
+def process_setup(year_type, start_date, timezone, progress_dict):
     """Process setup in a background thread"""
     conn = None
     try:
@@ -429,8 +491,9 @@ def process_setup(year_type, start_date, progress_dict):
             INSERT OR REPLACE INTO settings (key, value)
             VALUES ('last_order_update', ?),
                    ('last_club_update', ?),
-                   ('year_type', ?)
-        """, (start_date, start_date, year_type))
+                   ('year_type', ?),
+                   ('timezone', ?)
+        """, (start_date, start_date, year_type, timezone))
         
         # Add fiscal year settings if needed
         if year_type == 'fiscal':
@@ -463,6 +526,13 @@ def settings():
     conn = get_db_connection()
     
     if request.method == 'POST':
+        # Handle timezone update
+        new_timezone = request.form.get('timezone')
+        if new_timezone and validate_timezone(new_timezone):
+            conn.execute('UPDATE settings SET value = ? WHERE key = "timezone"', (new_timezone,))
+            # Restart scheduler with new timezone
+            restart_scheduler()
+        
         # Handle active and hidden associates
         active_associates = json.loads(request.form.get('active_associates', '[]'))
         hidden_associates = json.loads(request.form.get('hidden_associates', '[]'))
@@ -510,18 +580,9 @@ def settings():
     fiscal_start = conn.execute('SELECT value FROM settings WHERE key = "fiscal_year_start"').fetchone()['value']
     fiscal_end = conn.execute('SELECT value FROM settings WHERE key = "fiscal_year_end"').fetchone()['value']
     
-    # If dates aren't in YYYY-MM-DD format, set defaults
-    try:
-        datetime.strptime(fiscal_start, '%Y-%m-%d')
-        datetime.strptime(fiscal_end, '%Y-%m-%d')
-    except (ValueError, TypeError):
-        current_year = datetime.now().year
-        fiscal_start = f"{current_year}-07-01"
-        fiscal_end = f"{current_year + 1}-06-30"
-        
-        conn.execute('UPDATE settings SET value = ? WHERE key = "fiscal_year_start"', (fiscal_start,))
-        conn.execute('UPDATE settings SET value = ? WHERE key = "fiscal_year_end"', (fiscal_end,))
-        conn.commit()
+    # Get timezone settings
+    current_timezone = get_current_timezone(conn)
+    timezones_by_region = get_timezones_by_region()
     
     # Get display settings
     dark_mode = conn.execute('SELECT value FROM settings WHERE key = "dark_mode"').fetchone()['value']
@@ -567,7 +628,6 @@ def settings():
         if stats:
             detailed_stats[associate] = dict(stats)
         else:
-            # Provide default values if no stats are found
             detailed_stats[associate] = {
                 'total_days': 0,
                 'avg_score': 0,
@@ -589,7 +649,9 @@ def settings():
                          dark_mode=dark_mode,
                          show_tip_badges=show_tip_badges,
                          last_update_time=last_update_time,
-                         detailed_stats=detailed_stats)
+                         detailed_stats=detailed_stats,
+                         current_timezone=current_timezone,
+                         timezones_by_region=timezones_by_region)
 
 @app.route('/setup/progress')
 def setup_progress_status():
@@ -603,6 +665,12 @@ def setup_wizard():
     
     if request.method == 'POST':
         year_type = request.form.get('year_type', 'calendar')
+        timezone = request.form.get('timezone', 'UTC')
+        
+        # Validate timezone
+        if not validate_timezone(timezone):
+            return jsonify({'error': 'Invalid timezone selected'}), 400
+            
         current_year = datetime.now().year
         
         # Determine the start date based on year type
@@ -633,13 +701,22 @@ def setup_wizard():
         # Start setup process in background thread
         setup_thread = threading.Thread(
             target=process_setup,
-            args=(year_type, start_date, setup_progress)
+            args=(year_type, start_date, timezone, setup_progress)
         )
         setup_thread.start()
         
         return jsonify({'status': 'started'})
     
-    return render_template('setup.html')
+    # Get timezones for template
+    try:
+        timezones_by_region = get_timezones_by_region()
+        logger.info(f"Found {len(timezones_by_region)} timezones")
+        logger.debug(f"Timezone data: {timezones_by_region}")
+    except Exception as e:
+        logger.error(f"Error getting timezones: {str(e)}")
+        timezones_by_region = [('UTC', 'UTC+00:00')]
+    
+    return render_template('setup.html', timezones_by_region=timezones_by_region)
 
 @app.route('/team_setup', methods=['GET', 'POST'])
 def team_setup():
@@ -1575,6 +1652,7 @@ def manual_update():
 init_settings_table()
 if is_initialized():
     recalculate_scores()
+    init_scheduler()  # Start the scheduler with timezone support
 
 if __name__ == '__main__':
     app.run(debug=True) 
