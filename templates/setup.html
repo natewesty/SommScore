@@ -97,6 +97,77 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Timezone select styles */
+        .timezone-select-container {
+            margin-top: 1rem;
+            position: relative;
+        }
+
+        .timezone-select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            background: var(--card-background) !important;  /* Use theme variable */
+            color: var(--text-primary) !important;  /* Use theme variable */
+            font-size: 1rem;
+            cursor: pointer;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        .timezone-select::-ms-expand {
+            display: none;
+        }
+
+        .timezone-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+
+        .timezone-select option {
+            padding: 8px;
+            background: var(--card-background) !important;  /* Use theme variable */
+            color: var(--text-primary) !important;  /* Use theme variable */
+        }
+
+        .timezone-select optgroup {
+            font-weight: 600;
+            background: var(--card-background) !important;  /* Use theme variable */
+            color: var(--text-primary) !important;  /* Use theme variable */
+            padding: 8px;
+        }
+
+        /* Add a custom dropdown arrow */
+        .timezone-select-container::after {
+            content: '';
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid var(--text-primary);  /* Use theme variable */
+            pointer-events: none;
+        }
+
+        /* Remove the dark mode overrides that were hiding the select */
+        [data-theme="dark"] .timezone-select {
+            background: var(--card-background) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .timezone-select option,
+        [data-theme="dark"] .timezone-select optgroup {
+            background: var(--card-background) !important;
+            color: var(--text-primary) !important;
+        }
     </style>
 </head>
 <body>
@@ -157,6 +228,23 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h2>Timezone</h2>
+                    <p class="section-description">Select your local timezone for scheduling daily updates.</p>
+                    
+                    <div class="timezone-select-container">
+                        <select name="timezone" id="timezone-select" class="timezone-select" required>
+                            <option value="">Select a timezone...</option>
+                            {% for tz, display in timezones_by_region %}
+                            <option value="{{ tz }}">{{ display }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="help-text">
+                            Daily updates will run at 1:00 AM in your selected timezone
                         </div>
                     </div>
                 </div>

@@ -29,4 +29,5 @@ RUN chown -R 1000:1000 /app /data && \
 # Run as non-root user
 USER 1000:1000
 
-CMD ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=8000"] 
+# Use gunicorn for production
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "app:app"] 
