@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def init_database(db_path=None):
-    """Initialize the database schema"""
+    """Initialize the database schema for demo data"""
     if db_path is None:
         db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
     
@@ -92,8 +92,8 @@ def init_database(db_path=None):
             ('year_type', 'calendar'),
             ('active_associates', '[]'),
             ('hidden_associates', '[]'),
-            ('fiscal_year_start', '07-01'),
-            ('fiscal_year_end', '06-30'),
+            ('fiscal_year_start', '01-01'),
+            ('fiscal_year_end', '12-31'),
             ('dark_mode', 'true'),
             ('show_tip_badges', 'true')
         """)

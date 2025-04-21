@@ -1731,15 +1731,23 @@ def initialize_application():
             finally:
                 conn.close()
             
-            if DEMO_MODE:
-                print("Running in demo mode - generating fake data...")
-                if not generate_fake_data():
-                    print("Error: Failed to generate fake data. Exiting...")
-                    return False
-                print("Fake data generation complete!")
-            elif is_initialized():
-                recalculate_scores()
-                init_scheduler()
+            # Always use demo mode - clear existing data and generate new
+            print("Generating demo data...")
+            conn = get_db_connection()
+            try:
+                # Clear existing data
+                conn.execute("DELETE FROM orders")
+                conn.execute("DELETE FROM clubs")
+                conn.execute("DELETE FROM somm_scores")
+                conn.execute("DELETE FROM ref_table")
+                conn.commit()
+            finally:
+                conn.close()
+            
+            if not generate_fake_data():
+                print("Error: Failed to generate fake data. Exiting...")
+                return False
+            print("Fake data generation complete!")
             
             # Verify all tables exist and are accessible
             if not wait_for_tables():
