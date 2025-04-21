@@ -378,7 +378,10 @@
 
     <script>
     // Initialize associate stats and mapping from server data
+    console.log('Initializing team setup page...');
     const associateStats = JSON.parse('{{ associate_stats|tojson|safe }}');
+    console.log('Associate stats loaded:', associateStats);
+    
     const associateMapping = {};
     
     // Create ID mappings for all associates
@@ -386,6 +389,10 @@
     const activeAssociates = JSON.parse('{{ active_associates|tojson|safe }}');
     const allAssociates = JSON.parse('{{ all_associates|tojson|safe }}');
     const hiddenAssociates = JSON.parse('{{ hidden_associates|tojson|safe }}');
+    
+    console.log('Active associates:', activeAssociates);
+    console.log('All associates:', allAssociates);
+    console.log('Hidden associates:', hiddenAssociates);
     
     // Combine all associates into a single array
     const combinedAssociates = [
@@ -397,10 +404,14 @@
         ...hiddenAssociates
     ];
     
+    console.log('Combined associates:', combinedAssociates);
+    
     combinedAssociates.forEach(name => {
         associateMapping[nextId] = name;
         nextId++;
     });
+    
+    console.log('Associate mapping created:', associateMapping);
     
     // Reverse mapping for lookups
     const associateIds = Object.entries(associateMapping).reduce((acc, [id, name]) => {
@@ -408,7 +419,10 @@
         return acc;
     }, {});
     
+    console.log('Associate IDs mapping:', associateIds);
+    
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM Content Loaded event fired');
         // Apply theme
         const darkMode = '{{ dark_mode }}' === 'true';
         document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
@@ -421,6 +435,8 @@
         
         // Sort active list on initial load
         sortActiveList();
+        
+        console.log('Initial setup complete');
     });
 
     function submitForm() {

@@ -749,9 +749,15 @@ def setup_wizard():
 @app.route('/team_setup', methods=['GET', 'POST'])
 def team_setup():
     """Setup page for selecting active associates after initial build."""
+    logger.info("Entering team_setup route")
+    
     if request.method == 'POST':
+        logger.info("Processing POST request for team_setup")
         active_associates = json.loads(request.form.get('active_associates', '[]'))
         hidden_associates = json.loads(request.form.get('hidden_associates', '[]'))
+        
+        logger.info(f"Received active_associates: {active_associates}")
+        logger.info(f"Received hidden_associates: {hidden_associates}")
         
         conn = get_db_connection()
         conn.execute('UPDATE settings SET value = ? WHERE key = "active_associates"', 
@@ -770,6 +776,10 @@ def team_setup():
     all_associates = get_all_associates()
     active_associates = get_active_associates()
     hidden_associates = get_hidden_associates()
+    
+    logger.info(f"Retrieved all_associates: {all_associates}")
+    logger.info(f"Retrieved active_associates: {active_associates}")
+    logger.info(f"Retrieved hidden_associates: {hidden_associates}")
     
     # Get associate stats
     associate_stats = {}
@@ -810,6 +820,7 @@ def team_setup():
                 'diff_from_avg': 0
             }
     
+    logger.info(f"Calculated associate_stats: {associate_stats}")
     conn.close()
     
     return render_template('team_setup.html', 
