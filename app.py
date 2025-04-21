@@ -173,20 +173,42 @@ def init_settings_table():
     conn.close()
 
 def get_all_associates():
-    conn = get_db_connection()
-    associates = conn.execute('''
-        SELECT DISTINCT sales_associate 
-        FROM (
-            SELECT sales_associate FROM orders 
-            WHERE sales_associate IS NOT NULL
-            UNION
-            SELECT sales_associate FROM clubs
-            WHERE sales_associate IS NOT NULL
-        )
-        ORDER BY sales_associate
-    ''').fetchall()
-    conn.close()
-    return [a['sales_associate'] for a in associates]
+    """Get all unique sales associates from orders and clubs tables."""
+    logger.info("Getting all associates from database...")
+    db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
+    logger.info(f"Using database path: {db_path}")
+    
+    try:
+        conn = get_db_connection()
+        logger.info("Connected to database")
+        
+        # First check if we have any data in the tables
+        orders_count = conn.execute('SELECT COUNT(*) as count FROM orders').fetchone()['count']
+        clubs_count = conn.execute('SELECT COUNT(*) as count FROM clubs').fetchone()['count']
+        logger.info(f"Found {orders_count} orders and {clubs_count} club memberships")
+        
+        # Get all unique sales associates
+        associates = conn.execute('''
+            SELECT DISTINCT sales_associate 
+            FROM (
+                SELECT sales_associate FROM orders 
+                WHERE sales_associate IS NOT NULL
+                UNION
+                SELECT sales_associate FROM clubs
+                WHERE sales_associate IS NOT NULL
+            )
+            ORDER BY sales_associate
+        ''').fetchall()
+        
+        logger.info(f"Found {len(associates)} unique associates")
+        if associates:
+            logger.info(f"Associate names: {[a['sales_associate'] for a in associates]}")
+        
+        conn.close()
+        return [a['sales_associate'] for a in associates]
+    except Exception as e:
+        logger.error(f"Error getting all associates: {str(e)}")
+        return []
 
 def get_active_associates():
     """Get list of active associates from settings table."""

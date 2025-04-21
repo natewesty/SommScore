@@ -10,6 +10,7 @@ ENV PYTHONUNBUFFERED=1
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=development
 ENV FLASK_DEBUG=1
+ENV DB_PATH=/data/commerce7.db
 
 # Install Python dependencies
 COPY requirements.txt .
