@@ -28,8 +28,9 @@ scheduler_thread = None
 # Check if we're in demo mode
 DEMO_MODE = os.getenv('DEMO_MODE', 'false').lower() == 'true'
 
-# Add global initialization status
+# Add global initialization status and lock
 initialization_complete = False
+initialization_lock = threading.Lock()
 
 def run_scheduler():
     """Run the scheduler in a background thread."""
@@ -1637,10 +1638,16 @@ def wait_for_tables():
             """).fetchall()
             conn.close()
             
-            if len(tables) == 5:  # All required tables exist
+            # Convert to set of table names for easier comparison
+            table_names = {table['name'] for table in tables}
+            required_tables = {'settings', 'orders', 'clubs', 'somm_scores', 'ref_table'}
+            
+            if table_names == required_tables:  # All required tables exist
                 return True
                 
             print(f"Waiting for tables to be created... (attempt {attempt + 1}/{max_attempts})")
+            print(f"Found tables: {table_names}")
+            print(f"Missing tables: {required_tables - table_names}")
             time.sleep(2)  # Wait 2 seconds before next attempt
             attempt += 1
         except Exception as e:
@@ -1649,24 +1656,53 @@ def wait_for_tables():
             attempt += 1
     return False
 
-# Initialize settings table and recalculate scores when app starts
-init_settings_table()
-if DEMO_MODE:
-    print("Running in demo mode - generating fake data...")
-    if not generate_fake_data():
-        print("Error: Failed to generate fake data. Exiting...")
-        exit(1)
-    print("Fake data generation complete!")
-elif is_initialized():
-    recalculate_scores()
-    init_scheduler()  # Start the scheduler with timezone support
+def initialize_application():
+    """Initialize the application with proper locking."""
+    global initialization_complete
+    
+    with initialization_lock:
+        if initialization_complete:
+            return True
+            
+        try:
+            # Initialize settings table
+            init_settings_table()
+            
+            if DEMO_MODE:
+                print("Running in demo mode - generating fake data...")
+                # Clear existing data in demo mode
+                conn = get_db_connection()
+                conn.execute("DELETE FROM orders")
+                conn.execute("DELETE FROM clubs")
+                conn.execute("DELETE FROM somm_scores")
+                conn.execute("DELETE FROM ref_table")
+                conn.commit()
+                conn.close()
+                
+                if not generate_fake_data():
+                    print("Error: Failed to generate fake data. Exiting...")
+                    return False
+                print("Fake data generation complete!")
+            elif is_initialized():
+                recalculate_scores()
+                init_scheduler()
+            
+            # Wait for all tables to be created
+            if not wait_for_tables():
+                print("Error: Required tables were not created in time. Exiting...")
+                return False
+            
+            initialization_complete = True
+            return True
+            
+        except Exception as e:
+            print(f"Error during initialization: {str(e)}")
+            return False
 
-# Wait for all tables to be created
-if not wait_for_tables():
-    print("Error: Required tables were not created in time. Exiting...")
+# Initialize the application before starting the server
+if not initialize_application():
+    print("Failed to initialize application. Exiting...")
     exit(1)
-
-initialization_complete = True
 
 @app.route('/api/status')
 def check_status():
@@ -1682,10 +1718,14 @@ def check_status():
             """).fetchall()
             conn.close()
             
-            if len(tables) < 5:
+            # Convert to set of table names for easier comparison
+            table_names = {table['name'] for table in tables}
+            required_tables = {'settings', 'orders', 'clubs', 'somm_scores', 'ref_table'}
+            
+            if table_names != required_tables:
                 return jsonify({
                     'initialized': False,
-                    'error': 'Database tables are still being created...'
+                    'error': f'Waiting for tables: {required_tables - table_names}'
                 })
             
         return jsonify({
