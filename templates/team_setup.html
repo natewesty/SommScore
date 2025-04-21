@@ -325,7 +325,7 @@
                                     </span>
                                 </div>
                                 <div class="badge-container">
-                                    <button type="button" class="hide-badge" onclick="hideAssociate({{ counter.value }})">
+                                    <button type="button" class="hide-badge" data-associate-id="{{ counter.value }}" onclick="hideAssociate(this.dataset.associateId)">
                                         Hide
                                     </button>
                                 </div>
@@ -365,7 +365,7 @@
                         <span class="rank-number">👤</span>
                         <span class="associate-name">{{ associate }}</span>
                     </div>
-                    <button type="button" class="move-to-bench" onclick="moveToBench({{ counter.value }})">
+                    <button type="button" class="move-to-bench" data-associate-id="{{ counter.value }}" onclick="moveToBench(this.dataset.associateId)">
                         Move to Bench
                     </button>
                 </div>
@@ -383,16 +383,21 @@
     
     // Create ID mappings for all associates
     let nextId = 1;
-    const allAssociates = [
-        ...{{ active_associates|tojson|safe }},
-        ...{{ all_associates|tojson|safe }}.filter(name => 
-            !{{ active_associates|tojson|safe }}.includes(name) && 
-            !{{ hidden_associates|tojson|safe }}.includes(name)
+    const activeAssociates = JSON.parse('{{ active_associates|tojson|safe }}');
+    const allAssociates = JSON.parse('{{ all_associates|tojson|safe }}');
+    const hiddenAssociates = JSON.parse('{{ hidden_associates|tojson|safe }}');
+    
+    // Combine all associates into a single array
+    const combinedAssociates = [
+        ...activeAssociates,
+        ...allAssociates.filter(name => 
+            !activeAssociates.includes(name) && 
+            !hiddenAssociates.includes(name)
         ),
-        ...{{ hidden_associates|tojson|safe }}
+        ...hiddenAssociates
     ];
     
-    allAssociates.forEach(name => {
+    combinedAssociates.forEach(name => {
         associateMapping[nextId] = name;
         nextId++;
     });
@@ -549,7 +554,7 @@
         if (isBench) {
             cardContent += `
                 <div class="badge-container">
-                    <button type="button" class="hide-badge" onclick="hideAssociate(${associateId})">
+                    <button type="button" class="hide-badge" data-associate-id="{{ counter.value }}" onclick="hideAssociate(this.dataset.associateId)">
                         Hide
                     </button>
                 </div>
@@ -585,16 +590,11 @@
 
     // Function to hide an associate
     window.hideAssociate = function(associateId) {
-        console.log('Hiding associate:', associateId);
-        
         const card = document.querySelector(`.rank-item[data-associate-id="${associateId}"]`);
         const modalHiddenList = document.getElementById('modalHiddenList');
         
         if (!card || !modalHiddenList) {
-            console.error('Required elements not found:', {
-                card: !!card,
-                modalHiddenList: !!modalHiddenList
-            });
+            console.error('Required elements not found');
             return;
         }
         
@@ -611,7 +611,7 @@
                     <span class="rank-number">👤</span>
                     <span class="associate-name">${escapeHtml(associateName)}</span>
                 </div>
-                <button type="button" class="move-to-bench" onclick="moveToBench(${associateId})">
+                <button type="button" class="move-to-bench" data-associate-id="${associateId}" onclick="moveToBench(this.dataset.associateId)">
                     Move to Bench
                 </button>
             `;
@@ -637,8 +637,6 @@
             
             // Update form data
             updateFormData();
-            
-            console.log('Successfully hid associate:', associateId);
         } catch (error) {
             console.error('Error hiding associate:', error);
         }
@@ -656,11 +654,6 @@
             associateMapping[card.dataset.associateId]
         );
         
-        console.log('Updating form data:', {
-            activeAssociates,
-            hiddenAssociates
-        });
-        
         document.getElementById('activeAssociates').value = JSON.stringify(activeAssociates);
         document.getElementById('hiddenAssociates').value = JSON.stringify(hiddenAssociates);
         
@@ -669,15 +662,11 @@
 
     // Function to move associate back to bench
     window.moveToBench = function(associateId) {
-        console.log('Moving to bench:', associateId);
         const modalCard = document.querySelector(`#modalHiddenList .rank-item[data-associate-id="${associateId}"]`);
         const benchList = document.getElementById('benchList');
         
         if (!modalCard || !benchList) {
-            console.error('Required elements not found:', {
-                modalCard: !!modalCard,
-                benchList: !!benchList
-            });
+            console.error('Required elements not found');
             return;
         }
         
@@ -693,8 +682,6 @@
             
             // Update form data
             updateFormData();
-            
-            console.log('Successfully moved to bench:', associateId);
         } catch (error) {
             console.error('Error moving to bench:', error);
         }
