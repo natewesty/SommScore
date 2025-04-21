@@ -1721,23 +1721,18 @@ def initialize_application():
                         day_wght REAL
                     )
                 """)
+                
+                # Then clear existing data
+                conn.execute("DELETE FROM orders")
+                conn.execute("DELETE FROM clubs")
+                conn.execute("DELETE FROM somm_scores")
+                conn.execute("DELETE FROM ref_table")
                 conn.commit()
             finally:
                 conn.close()
             
             if DEMO_MODE:
                 print("Running in demo mode - generating fake data...")
-                # Clear existing data in demo mode
-                conn = get_db_connection()
-                try:
-                    conn.execute("DELETE FROM orders")
-                    conn.execute("DELETE FROM clubs")
-                    conn.execute("DELETE FROM somm_scores")
-                    conn.execute("DELETE FROM ref_table")
-                    conn.commit()
-                finally:
-                    conn.close()
-                
                 if not generate_fake_data():
                     print("Error: Failed to generate fake data. Exiting...")
                     return False
