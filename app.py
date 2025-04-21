@@ -131,9 +131,6 @@ def get_all_associates():
             UNION
             SELECT sales_associate FROM clubs
             WHERE sales_associate IS NOT NULL
-            UNION
-            SELECT sales_associate FROM somm_scores
-            WHERE sales_associate IS NOT NULL
         )
         ORDER BY sales_associate
     ''').fetchall()
