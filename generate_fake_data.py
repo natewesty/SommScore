@@ -58,10 +58,9 @@ def generate_fake_data():
                     tip_total = round(subtotal * random.uniform(0.15, 0.25), 2)
                     
                     cursor.execute("""
-                        INSERT INTO orders (id, order_number, order_paid_date, subtotal, tip_total, sales_associate)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        INSERT INTO orders (order_number, order_paid_date, subtotal, tip_total, sales_associate)
+                        VALUES (?, ?, ?, ?, ?)
                     """, (
-                        f"order_{order_id}",
                         f"ORD-{order_id:06d}",
                         current_date.strftime('%Y-%m-%d'),
                         subtotal,
@@ -84,7 +83,7 @@ def generate_fake_data():
                 club_name = f"Wine Club {random.randint(1, 5)}"
                 
                 cursor.execute("""
-                    INSERT INTO clubs (id, club_name, club_signup_date, sales_associate)
+                    INSERT INTO clubs (club_id, club_name, club_signup_date, sales_associate)
                     VALUES (?, ?, ?, ?)
                 """, (
                     f"club_{club_id}",
