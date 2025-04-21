@@ -18,6 +18,7 @@ def generate_fake_data():
         init_database(db_path)
         
         conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
         # Create fake sales associates

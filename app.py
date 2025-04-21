@@ -208,6 +208,8 @@ def update_fiscal_year_if_needed():
 
 def is_initialized():
     """Check if the application has been initialized with start dates"""
+    if DEMO_MODE:
+        return True  # Always return True in demo mode
     conn = get_db_connection()
     result = conn.execute('''
         SELECT COUNT(*) as count 
@@ -1657,6 +1659,16 @@ init_settings_table()
 if DEMO_MODE:
     print("Running in demo mode - generating fake data...")
     generate_fake_data()
+    # After generating fake data, calculate initial scores
+    db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        from calc_somm_score import calculate_somm_scores
+        calculate_somm_scores(db_path, conn, (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d'))
+        conn.commit()
+    finally:
+        conn.close()
 elif is_initialized():
     recalculate_scores()
     init_scheduler()  # Start the scheduler with timezone support
