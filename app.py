@@ -22,6 +22,14 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# Add at the top of the file, after imports
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=timedelta(days=31)
+)
+
 # Global scheduler thread
 scheduler_thread = None
 
@@ -1744,44 +1752,17 @@ def initialize_application():
             print(f"Error during initialization: {str(e)}")
             return False
 
-# Initialize the application before starting the server
-if not initialize_application():
-    print("Failed to initialize application. Exiting...")
-    exit(1)
-
-@app.route('/api/status')
-def check_status():
-    """Check the initialization status of the application."""
-    try:
-        if not initialization_complete:
-            # Check if tables exist
-            conn = get_db_connection()
-            tables = conn.execute("""
-                SELECT name FROM sqlite_master 
-                WHERE type='table' 
-                AND name IN ('settings', 'orders', 'clubs', 'somm_scores', 'ref_table')
-            """).fetchall()
-            conn.close()
-            
-            # Convert to set of table names for easier comparison
-            table_names = {table['name'] for table in tables}
-            required_tables = {'settings', 'orders', 'clubs', 'somm_scores', 'ref_table'}
-            
-            if table_names != required_tables:
-                return jsonify({
-                    'initialized': False,
-                    'error': f'Waiting for tables: {required_tables - table_names}'
-                })
-            
-        return jsonify({
-            'initialized': initialization_complete,
-            'error': None
-        })
-    except Exception as e:
-        return jsonify({
-            'initialized': False,
-            'error': f'Error checking status: {str(e)}'
-        })
-
+# Modify the main block at the bottom
 if __name__ == '__main__':
-    app.run(debug=True) 
+    # Initialize the application before starting the server
+    if not initialize_application():
+        print("Failed to initialize application. Exiting...")
+        exit(1)
+    
+    # Start the server
+    port = int(os.getenv('PORT', 8000))
+    host = os.getenv('HOST', '0.0.0.0')
+    debug = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    
+    print(f"Starting server on {host}:{port} (debug={debug})")
+    app.run(host=host, port=port, debug=debug) 
