@@ -36,8 +36,7 @@ def init_order_ingest(start_date, end_date=None):
     # Create orders table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS orders (
-            id TEXT PRIMARY KEY,
-            order_number TEXT UNIQUE,
+            order_number TEXT PRIMARY KEY,
             order_paid_date TEXT,
             subtotal REAL,
             tip_total REAL,
@@ -97,7 +96,6 @@ def init_order_ingest(start_date, end_date=None):
                                 continue
                             
                             # Extract fields
-                            order_id = order['id']
                             order_number = order.get('orderNumber')
                             order_paid_date = order.get('orderPaidDate')
                             tip_total = order.get('tipTotal', 0) / 100 if order.get('tipTotal') is not None else 0
@@ -114,10 +112,9 @@ def init_order_ingest(start_date, end_date=None):
 
                             # Insert into SQLite
                             cursor.execute("""
-                                INSERT INTO orders (id, order_number, order_paid_date, subtotal, tip_total, sales_associate)
-                                VALUES (?, ?, ?, ?, ?, ?);
+                                INSERT INTO orders (order_number, order_paid_date, subtotal, tip_total, sales_associate)
+                                VALUES (?, ?, ?, ?, ?);
                             """, (
-                                order_id,
                                 order_number,
                                 order_paid_date,
                                 subtotal,
