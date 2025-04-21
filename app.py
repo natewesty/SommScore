@@ -14,6 +14,7 @@ from init.init_club_ingest import init_club_ingest
 from daily_update import update_data
 import schedule
 from utils.timezone_helper import get_timezones_by_region, get_current_timezone, validate_timezone, convert_to_utc
+from generate_fake_data import generate_fake_data
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -23,6 +24,9 @@ app = Flask(__name__)
 
 # Global scheduler thread
 scheduler_thread = None
+
+# Check if we're in demo mode
+DEMO_MODE = os.getenv('DEMO_MODE', 'false').lower() == 'true'
 
 def run_scheduler():
     """Run the scheduler in a background thread."""
@@ -1650,7 +1654,10 @@ def manual_update():
 
 # Initialize settings table and recalculate scores when app starts
 init_settings_table()
-if is_initialized():
+if DEMO_MODE:
+    print("Running in demo mode - generating fake data...")
+    generate_fake_data()
+elif is_initialized():
     recalculate_scores()
     init_scheduler()  # Start the scheduler with timezone support
 

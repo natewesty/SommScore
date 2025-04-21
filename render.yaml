@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: sommscore-demo
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: DEMO_MODE
+        value: true
+      - key: FLASK_ENV
+        value: production
+      - key: PORT
+        value: 10000 
