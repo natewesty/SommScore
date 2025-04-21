@@ -65,6 +65,19 @@
             border-radius: 4px;
             display: none;
         }
+        .retry-button {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: none;
+        }
+        .retry-button:hover {
+            background-color: #2980b9;
+        }
     </style>
 </head>
 <body>
@@ -77,28 +90,52 @@
             <div class="status-item">Calculating initial scores...</div>
         </div>
         <div class="error" id="error-message"></div>
+        <button class="retry-button" id="retry-button" onclick="window.location.reload()">Retry</button>
     </div>
     <script>
-        // Auto-refresh every 5 seconds
+        let errorCount = 0;
+        const maxErrors = 5;
+        
         function checkStatus() {
             fetch('/api/status')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.initialized) {
                         window.location.reload();
                     } else if (data.error) {
-                        document.getElementById('error-message').style.display = 'block';
-                        document.getElementById('error-message').textContent = data.error;
+                        showError(data.error);
                     }
+                    errorCount = 0; // Reset error count on successful response
                 })
                 .catch(error => {
                     console.error('Error checking status:', error);
+                    errorCount++;
+                    if (errorCount >= maxErrors) {
+                        showError('Unable to connect to the server. Please try again later.');
+                        document.getElementById('retry-button').style.display = 'block';
+                    }
                 });
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.style.display = 'block';
+            errorDiv.textContent = message;
         }
         
         // Check status immediately and then every 5 seconds
         checkStatus();
-        setInterval(checkStatus, 5000);
+        const statusInterval = setInterval(checkStatus, 5000);
+        
+        // Clear interval when leaving the page
+        window.addEventListener('beforeunload', () => {
+            clearInterval(statusInterval);
+        });
     </script>
 </body>
 </html> 

@@ -1752,6 +1752,42 @@ def initialize_application():
             print(f"Error during initialization: {str(e)}")
             return False
 
+@app.route('/api/status')
+def check_status():
+    """Check the initialization status of the application."""
+    try:
+        if not initialization_complete:
+            # Check if tables exist
+            conn = get_db_connection()
+            try:
+                tables = conn.execute("""
+                    SELECT name FROM sqlite_master 
+                    WHERE type='table' 
+                    AND name IN ('settings', 'orders', 'clubs', 'somm_scores', 'ref_table')
+                """).fetchall()
+                
+                # Convert to set of table names for easier comparison
+                table_names = {table['name'] for table in tables}
+                required_tables = {'settings', 'orders', 'clubs', 'somm_scores', 'ref_table'}
+                
+                if table_names != required_tables:
+                    return jsonify({
+                        'initialized': False,
+                        'error': f'Waiting for tables: {required_tables - table_names}'
+                    })
+            finally:
+                conn.close()
+            
+        return jsonify({
+            'initialized': initialization_complete,
+            'error': None
+        })
+    except Exception as e:
+        return jsonify({
+            'initialized': False,
+            'error': f'Error checking status: {str(e)}'
+        })
+
 # Modify the main block at the bottom
 if __name__ == '__main__':
     # Initialize the application before starting the server
