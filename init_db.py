@@ -33,19 +33,18 @@ def init_database(db_path=None):
         # Create tables with proper indexes
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS orders (
-            id TEXT PRIMARY KEY,
-            order_number TEXT UNIQUE,
+            order_number TEXT PRIMARY KEY,
+            order_date TEXT,
             order_paid_date TEXT,
+            sales_associate TEXT,
             subtotal REAL,
-            tip_total REAL,
-            sales_associate TEXT
+            tip_total REAL
         )
         """)
         
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS clubs (
-            id TEXT PRIMARY KEY,
-            club_name TEXT,
+            club_id TEXT PRIMARY KEY,
             club_signup_date TEXT,
             sales_associate TEXT
         )
@@ -53,10 +52,10 @@ def init_database(db_path=None):
         
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS somm_scores (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            score_date TEXT NOT NULL,
-            sales_associate TEXT NOT NULL,
-            daily_score REAL NOT NULL
+            score_date TEXT,
+            sales_associate TEXT,
+            daily_score REAL,
+            PRIMARY KEY (score_date, sales_associate)
         )
         """)
         
@@ -70,7 +69,7 @@ def init_database(db_path=None):
         
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS ref_table (
-            date TEXT,
+            date TEXT PRIMARY KEY,
             dow INTEGER,
             mon INTEGER,
             fisc_mon INTEGER,
