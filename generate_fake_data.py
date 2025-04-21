@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import json
 from init_db import init_database
 import logging
+from app import get_db_connection
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -18,6 +19,7 @@ def generate_fake_data():
     db_path = os.getenv('DB_PATH', '/data/commerce7.db')
     logger.info(f"Using database path: {db_path}")
     
+    conn = None
     try:
         # Initialize the database
         init_database(db_path)
@@ -32,6 +34,7 @@ def generate_fake_data():
         
         # Update active associates in settings
         conn = get_db_connection()
+        cursor = conn.cursor()
         conn.execute("UPDATE settings SET value = ? WHERE key = 'active_associates'",
                     (json.dumps(sales_associates),))
         conn.commit()
