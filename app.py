@@ -1641,33 +1641,49 @@ def wait_for_tables():
     """Wait for all required tables to be created and populated."""
     max_attempts = 10
     attempt = 0
+    logger.info("Starting table verification process...")
+    
     while attempt < max_attempts:
         try:
+            logger.debug(f"Attempt {attempt + 1}/{max_attempts} to verify tables...")
             conn = get_db_connection()
+            
             # Check for all required tables
+            logger.debug("Querying sqlite_master for table information...")
             tables = conn.execute("""
                 SELECT name FROM sqlite_master 
                 WHERE type='table' 
                 AND name IN ('settings', 'orders', 'clubs', 'somm_scores', 'ref_table')
             """).fetchall()
-            conn.close()
             
             # Convert to set of table names for easier comparison
             table_names = {table['name'] for table in tables}
             required_tables = {'settings', 'orders', 'clubs', 'somm_scores', 'ref_table'}
             
+            logger.debug(f"Found tables: {table_names}")
+            logger.debug(f"Required tables: {required_tables}")
+            
             if table_names == required_tables:  # All required tables exist
+                logger.info("All required tables found!")
+                conn.close()
                 return True
                 
-            print(f"Waiting for tables to be created... (attempt {attempt + 1}/{max_attempts})")
-            print(f"Found tables: {table_names}")
-            print(f"Missing tables: {required_tables - table_names}")
+            missing_tables = required_tables - table_names
+            logger.warning(f"Missing tables: {missing_tables}")
+            logger.info(f"Waiting for tables to be created... (attempt {attempt + 1}/{max_attempts})")
+            
+            conn.close()
             time.sleep(2)  # Wait 2 seconds before next attempt
             attempt += 1
+            
         except Exception as e:
-            print(f"Error checking tables: {str(e)}")
+            logger.error(f"Error checking tables: {str(e)}")
+            if conn:
+                conn.close()
             time.sleep(2)
             attempt += 1
+            
+    logger.error("Failed to verify all required tables after maximum attempts")
     return False
 
 def initialize_application():
