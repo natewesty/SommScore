@@ -158,7 +158,7 @@ def init_settings_table():
     
     # Add default settings
     conn.execute('''
-        INSERT OR IGNORE INTO settings (key, value) 
+        INSERT OR REPLACE INTO settings (key, value) 
         VALUES 
             ('year_type', 'calendar'),
             ('active_associates', '[]'),

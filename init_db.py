@@ -104,7 +104,7 @@ def init_database(db_path=None):
         # Initialize default settings
         logger.debug("Initializing default settings...")
         cursor.execute("""
-        INSERT OR IGNORE INTO settings (key, value)
+        INSERT OR REPLACE INTO settings (key, value)
         VALUES 
             ('timezone', 'UTC'),
             ('year_type', 'calendar'),
