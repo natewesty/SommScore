@@ -1667,7 +1667,7 @@ init_settings_table()
 if os.environ.get('DEMO_MODE') == 'true':
     try:
         # Initialize demo data
-        init_demo_data()
+        generate_fake_data()
         # Initialize settings for demo mode
         init_settings_table()
     except Exception as e:
