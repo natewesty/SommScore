@@ -141,8 +141,14 @@ def before_request():
         ensure_initialized()
 
 def get_db_connection():
-    db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
+    """Get a database connection with consistent path."""
+    # Always use the absolute path from environment variable
+    db_path = os.getenv('DB_PATH', '/data/commerce7.db')
+    logger.info(f"Connecting to database at: {db_path}")
+    
+    # Ensure the directory exists
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn

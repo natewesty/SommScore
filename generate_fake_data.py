@@ -12,32 +12,30 @@ logger = logging.getLogger(__name__)
 
 def generate_fake_data():
     """Generate fake data for demonstration purposes."""
+    logger.info("Starting fake data generation...")
+    
+    # Use the same database path as the main application
+    db_path = os.getenv('DB_PATH', '/data/commerce7.db')
+    logger.info(f"Using database path: {db_path}")
+    
     try:
-        # Initialize database
-        db_path = os.path.join('data', 'commerce7.db')
+        # Initialize the database
         init_database(db_path)
         
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        # Create fake sales associates
+        # Create a list of fake sales associates
         sales_associates = [
-            "Sarah Johnson",
-            "Michael Chen",
-            "Emily Rodriguez",
-            "David Kim",
-            "Jessica Martinez",
-            "Robert Wilson",
-            "Jennifer Lee",
-            "Christopher Brown",
-            "Amanda Taylor",
+            "Sarah Johnson", "Michael Chen", "Emily Rodriguez",
+            "David Kim", "Jessica Martinez", "Robert Wilson",
+            "Jennifer Lee", "Christopher Brown", "Amanda Taylor",
             "Daniel Garcia"
         ]
         
-        # Set active associates in settings
-        cursor.execute("UPDATE settings SET value = ? WHERE key = 'active_associates'",
-                      (json.dumps(sales_associates),))
+        # Update active associates in settings
+        conn = get_db_connection()
+        conn.execute("UPDATE settings SET value = ? WHERE key = 'active_associates'",
+                    (json.dumps(sales_associates),))
+        conn.commit()
+        logger.info(f"Set active associates: {sales_associates}")
         
         # Generate dates for the past year
         end_date = datetime.now()
