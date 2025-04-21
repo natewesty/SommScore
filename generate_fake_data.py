@@ -80,14 +80,12 @@ def generate_fake_data():
             num_clubs = random.randint(0, 3)
             for _ in range(num_clubs):
                 sales_associate = random.choice(sales_associates)
-                club_name = f"Wine Club {random.randint(1, 5)}"
                 
                 cursor.execute("""
-                    INSERT INTO clubs (club_id, club_name, club_signup_date, sales_associate)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO clubs (club_id, club_signup_date, sales_associate)
+                    VALUES (?, ?, ?)
                 """, (
                     f"club_{club_id}",
-                    club_name,
                     current_date.strftime('%Y-%m-%d'),
                     sales_associate
                 ))
