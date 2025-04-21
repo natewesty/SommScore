@@ -97,29 +97,25 @@ def get_db_connection():
     return conn
 
 def init_settings_table():
+    """Initialize the settings table with default values."""
     conn = get_db_connection()
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        )
-    ''')
-    
-    # Add default settings
-    conn.execute('''
-        INSERT OR IGNORE INTO settings (key, value) 
-        VALUES 
-            ('year_type', 'calendar'),
-            ('active_associates', '[]'),
-            ('hidden_associates', '[]'),
-            ('fiscal_year_start', '07-01'),
-            ('fiscal_year_end', '06-30'),
-            ('dark_mode', 'true'),
-            ('show_tip_badges', 'true'),
-            ('timezone', 'UTC')
-    ''')
-    conn.commit()
-    conn.close()
+    try:
+        # Initialize default settings
+        conn.execute("""
+            INSERT OR IGNORE INTO settings (key, value)
+            VALUES 
+                ('timezone', 'UTC'),
+                ('year_type', 'calendar'),
+                ('active_associates', '[]'),
+                ('hidden_associates', '[]'),
+                ('fiscal_year_start', '07-01'),
+                ('fiscal_year_end', '06-30'),
+                ('dark_mode', 'true'),
+                ('show_tip_badges', 'true')
+        """)
+        conn.commit()
+    finally:
+        conn.close()
 
 def get_all_associates():
     conn = get_db_connection()
