@@ -424,47 +424,53 @@ def process_setup(year_type, start_date, timezone, progress_dict):
         
         logger.info(f"Calculated reference period: {ref_start_date.strftime('%Y-%m-%d')} to {ref_end_date.strftime('%Y-%m-%d')}")
         
-        # First, ingest reference period data
-        progress_dict['status'] = 'fetching_reference_orders'
-        progress_dict['message'] = 'Fetching reference period order data...'
-        
-        # Ingest orders for reference period
-        orders_added = init_order_ingest(
-            ref_start_date.strftime('%Y-%m-%d'),
-            ref_end_date.strftime('%Y-%m-%d')
-        )
-        logger.info(f"Reference period orders added: {orders_added}")
-        
-        progress_dict['status'] = 'fetching_reference_clubs'
-        progress_dict['message'] = 'Fetching reference period club data...'
-        
-        # Ingest clubs for reference period
-        clubs_added = init_club_ingest(
-            ref_start_date.strftime('%Y-%m-%d'),
-            ref_end_date.strftime('%Y-%m-%d')
-        )
-        logger.info(f"Reference period clubs added: {clubs_added}")
-        
-        # Now ingest current fiscal year data
-        progress_dict['status'] = 'fetching_current_orders'
-        progress_dict['message'] = 'Fetching current fiscal year order data...'
-        
-        # Ingest orders for current period
-        current_orders = init_order_ingest(
-            start_date,
-            datetime.now().strftime('%Y-%m-%d')
-        )
-        logger.info(f"Current period orders added: {current_orders}")
-        
-        progress_dict['status'] = 'fetching_current_clubs'
-        progress_dict['message'] = 'Fetching current fiscal year club data...'
-        
-        # Ingest clubs for current period
-        current_clubs = init_club_ingest(
-            start_date,
-            datetime.now().strftime('%Y-%m-%d')
-        )
-        logger.info(f"Current period clubs added: {current_clubs}")
+        if DEMO_MODE:
+            # In demo mode, we skip API calls and use the fake data that was already generated
+            progress_dict['status'] = 'demo_mode'
+            progress_dict['message'] = 'Using demo data...'
+            logger.info("Skipping API calls in demo mode")
+        else:
+            # First, ingest reference period data
+            progress_dict['status'] = 'fetching_reference_orders'
+            progress_dict['message'] = 'Fetching reference period order data...'
+            
+            # Ingest orders for reference period
+            orders_added = init_order_ingest(
+                ref_start_date.strftime('%Y-%m-%d'),
+                ref_end_date.strftime('%Y-%m-%d')
+            )
+            logger.info(f"Reference period orders added: {orders_added}")
+            
+            progress_dict['status'] = 'fetching_reference_clubs'
+            progress_dict['message'] = 'Fetching reference period club data...'
+            
+            # Ingest clubs for reference period
+            clubs_added = init_club_ingest(
+                ref_start_date.strftime('%Y-%m-%d'),
+                ref_end_date.strftime('%Y-%m-%d')
+            )
+            logger.info(f"Reference period clubs added: {clubs_added}")
+            
+            # Now ingest current fiscal year data
+            progress_dict['status'] = 'fetching_current_orders'
+            progress_dict['message'] = 'Fetching current fiscal year order data...'
+            
+            # Ingest orders for current period
+            current_orders = init_order_ingest(
+                start_date,
+                datetime.now().strftime('%Y-%m-%d')
+            )
+            logger.info(f"Current period orders added: {current_orders}")
+            
+            progress_dict['status'] = 'fetching_current_clubs'
+            progress_dict['message'] = 'Fetching current fiscal year club data...'
+            
+            # Ingest clubs for current period
+            current_clubs = init_club_ingest(
+                start_date,
+                datetime.now().strftime('%Y-%m-%d')
+            )
+            logger.info(f"Current period clubs added: {current_clubs}")
         
         # Get all associates and set them as active
         progress_dict['status'] = 'setting_active_associates'
