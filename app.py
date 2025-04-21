@@ -1665,19 +1665,64 @@ def initialize_application():
             return True
             
         try:
-            # Initialize settings table
+            # Initialize settings table and ensure all tables exist
             init_settings_table()
+            
+            # Ensure all required tables exist
+            conn = get_db_connection()
+            try:
+                # Create tables if they don't exist
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS orders (
+                        order_number TEXT PRIMARY KEY,
+                        order_date TEXT,
+                        order_paid_date TEXT,
+                        sales_associate TEXT,
+                        subtotal REAL,
+                        tip_total REAL
+                    )
+                """)
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS clubs (
+                        club_id TEXT PRIMARY KEY,
+                        club_signup_date TEXT,
+                        sales_associate TEXT
+                    )
+                """)
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS somm_scores (
+                        score_date TEXT,
+                        sales_associate TEXT,
+                        daily_score REAL,
+                        PRIMARY KEY (score_date, sales_associate)
+                    )
+                """)
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS ref_table (
+                        date TEXT PRIMARY KEY,
+                        dow INTEGER,
+                        mon INTEGER,
+                        fisc_mon INTEGER,
+                        ttl_earn REAL,
+                        day_wght REAL
+                    )
+                """)
+                conn.commit()
+            finally:
+                conn.close()
             
             if DEMO_MODE:
                 print("Running in demo mode - generating fake data...")
                 # Clear existing data in demo mode
                 conn = get_db_connection()
-                conn.execute("DELETE FROM orders")
-                conn.execute("DELETE FROM clubs")
-                conn.execute("DELETE FROM somm_scores")
-                conn.execute("DELETE FROM ref_table")
-                conn.commit()
-                conn.close()
+                try:
+                    conn.execute("DELETE FROM orders")
+                    conn.execute("DELETE FROM clubs")
+                    conn.execute("DELETE FROM somm_scores")
+                    conn.execute("DELETE FROM ref_table")
+                    conn.commit()
+                finally:
+                    conn.close()
                 
                 if not generate_fake_data():
                     print("Error: Failed to generate fake data. Exiting...")
@@ -1687,7 +1732,7 @@ def initialize_application():
                 recalculate_scores()
                 init_scheduler()
             
-            # Wait for all tables to be created
+            # Verify all tables exist and are accessible
             if not wait_for_tables():
                 print("Error: Required tables were not created in time. Exiting...")
                 return False
