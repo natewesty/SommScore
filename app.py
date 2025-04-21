@@ -1622,6 +1622,33 @@ def manual_update():
         app.logger.error(f"Error during manual update: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+def wait_for_tables():
+    """Wait for all required tables to be created and populated."""
+    max_attempts = 10
+    attempt = 0
+    while attempt < max_attempts:
+        try:
+            conn = get_db_connection()
+            # Check for all required tables
+            tables = conn.execute("""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' 
+                AND name IN ('settings', 'orders', 'clubs', 'somm_scores', 'ref_table')
+            """).fetchall()
+            conn.close()
+            
+            if len(tables) == 5:  # All required tables exist
+                return True
+                
+            print(f"Waiting for tables to be created... (attempt {attempt + 1}/{max_attempts})")
+            time.sleep(2)  # Wait 2 seconds before next attempt
+            attempt += 1
+        except Exception as e:
+            print(f"Error checking tables: {str(e)}")
+            time.sleep(2)
+            attempt += 1
+    return False
+
 # Initialize settings table and recalculate scores when app starts
 init_settings_table()
 if DEMO_MODE:
@@ -1634,7 +1661,42 @@ elif is_initialized():
     recalculate_scores()
     init_scheduler()  # Start the scheduler with timezone support
 
+# Wait for all tables to be created
+if not wait_for_tables():
+    print("Error: Required tables were not created in time. Exiting...")
+    exit(1)
+
 initialization_complete = True
+
+@app.route('/api/status')
+def check_status():
+    """Check the initialization status of the application."""
+    try:
+        if not initialization_complete:
+            # Check if tables exist
+            conn = get_db_connection()
+            tables = conn.execute("""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' 
+                AND name IN ('settings', 'orders', 'clubs', 'somm_scores', 'ref_table')
+            """).fetchall()
+            conn.close()
+            
+            if len(tables) < 5:
+                return jsonify({
+                    'initialized': False,
+                    'error': 'Database tables are still being created...'
+                })
+            
+        return jsonify({
+            'initialized': initialization_complete,
+            'error': None
+        })
+    except Exception as e:
+        return jsonify({
+            'initialized': False,
+            'error': f'Error checking status: {str(e)}'
+        })
 
 if __name__ == '__main__':
     app.run(debug=True) 

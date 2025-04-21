@@ -19,6 +19,8 @@
             background-color: white;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 90%;
         }
         .spinner {
             width: 40px;
@@ -37,23 +39,66 @@
             color: #2c3e50;
             margin-bottom: 1rem;
         }
-        p {
+        .status {
             color: #7f8c8d;
-            margin: 0;
+            margin: 1rem 0;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            text-align: left;
+        }
+        .status-item {
+            margin: 0.5rem 0;
+            display: flex;
+            align-items: center;
+        }
+        .status-item::before {
+            content: "•";
+            margin-right: 0.5rem;
+            color: #3498db;
+        }
+        .error {
+            color: #e74c3c;
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #fdf3f2;
+            border-radius: 4px;
+            display: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="spinner"></div>
-        <h1>Initializing</h1>
-        <p>Please wait while we set up your data...</p>
+        <h1>Initializing SommScore</h1>
+        <div class="status">
+            <div class="status-item">Creating database tables...</div>
+            <div class="status-item">Generating sample data...</div>
+            <div class="status-item">Calculating initial scores...</div>
+        </div>
+        <div class="error" id="error-message"></div>
     </div>
     <script>
         // Auto-refresh every 5 seconds
-        setTimeout(function() {
-            window.location.reload();
-        }, 5000);
+        function checkStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.initialized) {
+                        window.location.reload();
+                    } else if (data.error) {
+                        document.getElementById('error-message').style.display = 'block';
+                        document.getElementById('error-message').textContent = data.error;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking status:', error);
+                });
+        }
+        
+        // Check status immediately and then every 5 seconds
+        checkStatus();
+        setInterval(checkStatus, 5000);
     </script>
 </body>
 </html> 
