@@ -1655,12 +1655,14 @@ def manual_update():
         return jsonify({'error': str(e)}), 500
 
 # Initialize settings table and recalculate scores when app starts
-init_settings_table()
+db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
+init_database(db_path)  # Initialize database first
+init_settings_table()   # Then initialize settings
+
 if DEMO_MODE:
     print("Running in demo mode - generating fake data...")
     generate_fake_data()
     # After generating fake data, calculate initial scores
-    db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
