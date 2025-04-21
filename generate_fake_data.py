@@ -12,9 +12,11 @@ logger = logging.getLogger(__name__)
 
 def generate_fake_data():
     """Generate fake data for demonstration purposes."""
+    conn = None
     try:
         # Connect to existing database
         db_path = os.path.join('data', 'commerce7.db')
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)  # Ensure directory exists
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()

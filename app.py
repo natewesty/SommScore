@@ -403,6 +403,7 @@ def process_setup(year_type, start_date, timezone, progress_dict):
         
         # Initialize the database
         db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
         init_database(db_path)
         
         # Create a single database connection for all operations
@@ -1656,6 +1657,7 @@ def manual_update():
 
 # Initialize settings table and recalculate scores when app starts
 db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
+os.makedirs(os.path.dirname(db_path), exist_ok=True)  # Create data directory if it doesn't exist
 init_database(db_path)  # Initialize database first
 init_settings_table()   # Then initialize settings
 
