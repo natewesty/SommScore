@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import json
 from init_db import init_database
 import logging
-from app import get_db_connection
+from utils.db import get_db_connection
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

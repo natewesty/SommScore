@@ -15,6 +15,7 @@ from daily_update import update_data
 import schedule
 from utils.timezone_helper import get_timezones_by_region, get_current_timezone, validate_timezone, convert_to_utc
 from generate_fake_data import generate_fake_data
+from utils.db import get_db_connection
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -139,19 +140,6 @@ def before_request():
     """Ensure initialization before each request."""
     if not initialization_complete and not initialization_in_progress:
         ensure_initialized()
-
-def get_db_connection():
-    """Get a database connection with consistent path."""
-    # Always use the absolute path from environment variable
-    db_path = os.getenv('DB_PATH', '/data/commerce7.db')
-    logger.info(f"Connecting to database at: {db_path}")
-    
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 def init_settings_table():
     conn = get_db_connection()
