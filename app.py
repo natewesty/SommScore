@@ -116,7 +116,7 @@ def init_settings_table():
             ('fiscal_year_end', '06-30'),
             ('dark_mode', 'true'),
             ('show_tip_badges', 'true'),
-            ('timezone', 'UTC')
+            ('timezone', 'America/Los_Angeles')
     ''')
     conn.commit()
     conn.close()
@@ -667,60 +667,28 @@ def setup_wizard():
     if is_initialized():
         return redirect(url_for('index'))
     
-    if request.method == 'POST':
-        year_type = request.form.get('year_type', 'calendar')
-        timezone = request.form.get('timezone', 'UTC')
-        
-        # Validate timezone
-        if not validate_timezone(timezone):
-            return jsonify({'error': 'Invalid timezone selected'}), 400
-            
-        current_year = datetime.now().year
-        
-        # Determine the start date based on year type
-        if year_type == 'calendar':
-            start_date = f"{current_year}-01-01"
-        else:
-            fiscal_start = request.form.get('fiscal_start')
-            if not fiscal_start:
-                return jsonify({'error': 'Fiscal year start date is required'}), 400
-            
-            try:
-                # Validate fiscal start date
-                fiscal_date = datetime.strptime(fiscal_start, '%Y-%m-%d')
-                # For fiscal year, use the previous year's date
-                fiscal_date = fiscal_date.replace(year=current_year - 1)
-                start_date = fiscal_date.strftime('%Y-%m-%d')
-            except ValueError:
-                return jsonify({'error': 'Invalid date format'}), 400
-        
-        # Reset progress tracking
-        global setup_progress
-        setup_progress = {
-            'status': 'starting',
-            'message': 'Starting setup process...',
-            'error': None
-        }
-        
-        # Start setup process in background thread
-        setup_thread = threading.Thread(
-            target=process_setup,
-            args=(year_type, start_date, timezone, setup_progress)
-        )
-        setup_thread.start()
-        
-        return jsonify({'status': 'started'})
+    # Set default values for year type and timezone
+    year_type = 'calendar'
+    timezone = 'America/Los_Angeles'
+    current_year = datetime.now().year
+    start_date = f"{current_year}-01-01"
     
-    # Get timezones for template
-    try:
-        timezones_by_region = get_timezones_by_region()
-        logger.info(f"Found {len(timezones_by_region)} timezones")
-        logger.debug(f"Timezone data: {timezones_by_region}")
-    except Exception as e:
-        logger.error(f"Error getting timezones: {str(e)}")
-        timezones_by_region = [('UTC', 'UTC+00:00')]
+    # Reset progress tracking
+    global setup_progress
+    setup_progress = {
+        'status': 'starting',
+        'message': 'Starting setup process...',
+        'error': None
+    }
     
-    return render_template('setup.html', timezones_by_region=timezones_by_region)
+    # Start setup process in background thread
+    setup_thread = threading.Thread(
+        target=process_setup,
+        args=(year_type, start_date, timezone, setup_progress)
+    )
+    setup_thread.start()
+    
+    return redirect(url_for('team_setup'))
 
 @app.route('/team_setup', methods=['GET', 'POST'])
 def team_setup():
@@ -797,10 +765,6 @@ def team_setup():
 
 @app.route('/')
 def index():
-    # Check if the application has been initialized
-    if not is_initialized():
-        return redirect(url_for('setup_wizard'))
-        
     # Check if active associates are set up
     active_associates = get_active_associates()
     if not active_associates:
