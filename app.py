@@ -102,7 +102,7 @@ def init_settings_table():
     try:
         # Initialize default settings
         conn.execute("""
-            INSERT OR IGNORE INTO settings (key, value)
+            INSERT OR REPLACE INTO settings (key, value)
             VALUES 
                 ('timezone', 'UTC'),
                 ('year_type', 'calendar'),
@@ -111,7 +111,9 @@ def init_settings_table():
                 ('fiscal_year_start', '07-01'),
                 ('fiscal_year_end', '06-30'),
                 ('dark_mode', 'true'),
-                ('show_tip_badges', 'true')
+                ('show_tip_badges', 'true'),
+                ('last_order_update', '2024-01-01'),
+                ('last_club_update', '2024-01-01')
         """)
         conn.commit()
     finally:
@@ -1654,21 +1656,23 @@ def manual_update():
 # Initialize settings table and recalculate scores when app starts
 db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
 os.makedirs(os.path.dirname(db_path), exist_ok=True)  # Create data directory if it doesn't exist
-init_database(db_path)  # Initialize database first
-init_settings_table()   # Then initialize settings
 
-if DEMO_MODE:
-    print("Running in demo mode - generating fake data...")
-    generate_fake_data()
-    # After generating fake data, calculate initial scores
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
+# Initialize database first
+init_database(db_path)
+
+# Initialize settings table
+init_settings_table()
+
+# Initialize demo mode if enabled
+if os.environ.get('DEMO_MODE') == 'true':
     try:
-        from calc_somm_score import calculate_somm_scores
-        calculate_somm_scores(db_path, conn, (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d'))
-        conn.commit()
-    finally:
-        conn.close()
+        # Initialize demo data
+        init_demo_data()
+        # Initialize settings for demo mode
+        init_settings_table()
+    except Exception as e:
+        print(f"Error initializing demo mode: {e}")
+        # Continue with empty database if demo initialization fails
 elif is_initialized():
     recalculate_scores()
     init_scheduler()  # Start the scheduler with timezone support
