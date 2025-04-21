@@ -36,9 +36,10 @@ scheduler_thread = None
 # Check if we're in demo mode
 DEMO_MODE = os.getenv('DEMO_MODE', 'false').lower() == 'true'
 
-# Add global initialization status and lock
+# Add global initialization status
 initialization_complete = False
-initialization_lock = threading.Lock()
+initialization_in_progress = False
+initialization_error = None
 
 def run_scheduler():
     """Run the scheduler in a background thread."""
@@ -94,12 +95,50 @@ def restart_scheduler():
     # Initialize new scheduler
     init_scheduler()
 
-# Add global variables for tracking setup progress
-setup_progress = {
-    'status': 'not_started',
-    'message': 'Setup not started',
-    'error': None
-}
+def ensure_initialized():
+    """Ensure the application is initialized before handling requests."""
+    global initialization_complete, initialization_in_progress, initialization_error
+    
+    if initialization_complete:
+        return True
+        
+    if initialization_in_progress:
+        return False
+        
+    try:
+        initialization_in_progress = True
+        logger.info("Starting runtime initialization...")
+        
+        # Ensure data directory exists
+        data_dir = os.path.dirname(os.getenv('DB_PATH', os.path.join('data', 'commerce7.db')))
+        os.makedirs(data_dir, exist_ok=True)
+        
+        # Initialize database
+        if not init_database():
+            initialization_error = "Failed to initialize database"
+            return False
+            
+        # Generate demo data
+        if not generate_fake_data():
+            initialization_error = "Failed to generate demo data"
+            return False
+            
+        initialization_complete = True
+        logger.info("Runtime initialization complete!")
+        return True
+        
+    except Exception as e:
+        initialization_error = str(e)
+        logger.error(f"Initialization error: {e}")
+        return False
+    finally:
+        initialization_in_progress = False
+
+@app.before_request
+def before_request():
+    """Ensure initialization before each request."""
+    if not initialization_complete and not initialization_in_progress:
+        ensure_initialized()
 
 def get_db_connection():
     db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
@@ -1686,137 +1725,23 @@ def wait_for_tables():
     logger.error("Failed to verify all required tables after maximum attempts")
     return False
 
-def initialize_application():
-    """Initialize the application with proper locking."""
-    global initialization_complete
-    
-    with initialization_lock:
-        if initialization_complete:
-            return True
-            
-        try:
-            # Initialize settings table and ensure all tables exist
-            init_settings_table()
-            
-            # Ensure all required tables exist
-            conn = get_db_connection()
-            try:
-                # Create tables if they don't exist
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS orders (
-                        order_number TEXT PRIMARY KEY,
-                        order_date TEXT,
-                        order_paid_date TEXT,
-                        sales_associate TEXT,
-                        subtotal REAL,
-                        tip_total REAL
-                    )
-                """)
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS clubs (
-                        club_id TEXT PRIMARY KEY,
-                        club_signup_date TEXT,
-                        sales_associate TEXT
-                    )
-                """)
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS somm_scores (
-                        score_date TEXT,
-                        sales_associate TEXT,
-                        daily_score REAL,
-                        PRIMARY KEY (score_date, sales_associate)
-                    )
-                """)
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS ref_table (
-                        date TEXT PRIMARY KEY,
-                        dow INTEGER,
-                        mon INTEGER,
-                        fisc_mon INTEGER,
-                        ttl_earn REAL,
-                        day_wght REAL
-                    )
-                """)
-                
-                # Then clear existing data
-                conn.execute("DELETE FROM orders")
-                conn.execute("DELETE FROM clubs")
-                conn.execute("DELETE FROM somm_scores")
-                conn.execute("DELETE FROM ref_table")
-                conn.commit()
-            finally:
-                conn.close()
-            
-            # Always use demo mode - clear existing data and generate new
-            print("Generating demo data...")
-            conn = get_db_connection()
-            try:
-                # Clear existing data
-                conn.execute("DELETE FROM orders")
-                conn.execute("DELETE FROM clubs")
-                conn.execute("DELETE FROM somm_scores")
-                conn.execute("DELETE FROM ref_table")
-                conn.commit()
-            finally:
-                conn.close()
-            
-            if not generate_fake_data():
-                print("Error: Failed to generate fake data. Exiting...")
-                return False
-            print("Fake data generation complete!")
-            
-            # Verify all tables exist and are accessible
-            if not wait_for_tables():
-                print("Error: Required tables were not created in time. Exiting...")
-                return False
-            
-            initialization_complete = True
-            return True
-            
-        except Exception as e:
-            print(f"Error during initialization: {str(e)}")
-            return False
-
 @app.route('/api/status')
 def check_status():
     """Check the initialization status of the application."""
-    try:
-        if not initialization_complete:
-            # Check if tables exist
-            conn = get_db_connection()
-            try:
-                tables = conn.execute("""
-                    SELECT name FROM sqlite_master 
-                    WHERE type='table' 
-                    AND name IN ('settings', 'orders', 'clubs', 'somm_scores', 'ref_table')
-                """).fetchall()
-                
-                # Convert to set of table names for easier comparison
-                table_names = {table['name'] for table in tables}
-                required_tables = {'settings', 'orders', 'clubs', 'somm_scores', 'ref_table'}
-                
-                if table_names != required_tables:
-                    return jsonify({
-                        'initialized': False,
-                        'error': f'Waiting for tables: {required_tables - table_names}'
-                    })
-            finally:
-                conn.close()
-            
-        return jsonify({
-            'initialized': initialization_complete,
-            'error': None
-        })
-    except Exception as e:
+    if initialization_error:
         return jsonify({
             'initialized': False,
-            'error': f'Error checking status: {str(e)}'
+            'error': initialization_error
         })
+    return jsonify({
+        'initialized': initialization_complete,
+        'error': None
+    })
 
 # Modify the main block at the bottom
 if __name__ == '__main__':
     # Initialize the application before starting the server
-    if not initialize_application():
+    if not ensure_initialized():
         print("Failed to initialize application. Exiting...")
         exit(1)
     
