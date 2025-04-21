@@ -6,80 +6,121 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def init_database(db_path):
-    """Initialize the SQLite database with all required tables."""
+def init_database(db_path=None):
+    """Initialize the database schema"""
+    if db_path is None:
+        db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
+    
+    conn = None
     try:
-        # Ensure the directory exists
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        # Ensure the data directory exists
+        data_dir = os.path.dirname(db_path)
+        os.makedirs(data_dir, exist_ok=True)
         
-        # Connect to the database
-        conn = sqlite3.connect(db_path)
+        # Try to set permissions on the directory, but don't fail if we can't
+        try:
+            os.chmod(data_dir, 0o777)
+        except PermissionError:
+            logger.warning("Could not set permissions on data directory - continuing anyway")
+        
+        # Connect to database with immediate write mode
+        conn = sqlite3.connect(db_path, isolation_level=None)
         cursor = conn.cursor()
         
-        # Create settings table first
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS settings (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            )
-        ''')
+        # Enable foreign keys
+        cursor.execute("PRAGMA foreign_keys = ON")
         
-        # Create orders table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS orders (
-                id TEXT PRIMARY KEY,
-                order_number TEXT NOT NULL,
-                order_paid_date DATE NOT NULL,
-                subtotal REAL NOT NULL,
-                tip_total REAL NOT NULL,
-                sales_associate TEXT NOT NULL
-            )
-        ''')
+        # Create tables with proper indexes
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS orders (
+            id TEXT PRIMARY KEY,
+            order_number TEXT UNIQUE,
+            order_paid_date TEXT,
+            subtotal REAL,
+            tip_total REAL,
+            sales_associate TEXT
+        )
+        """)
         
-        # Create clubs table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS clubs (
-                id TEXT PRIMARY KEY,
-                club_name TEXT NOT NULL,
-                club_signup_date DATE NOT NULL,
-                sales_associate TEXT NOT NULL
-            )
-        ''')
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS clubs (
+            id TEXT PRIMARY KEY,
+            club_name TEXT,
+            club_signup_date TEXT,
+            sales_associate TEXT
+        )
+        """)
         
-        # Create ref_table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS ref_table (
-                date DATE PRIMARY KEY,
-                dow INTEGER NOT NULL,
-                mon INTEGER NOT NULL,
-                fisc_mon INTEGER NOT NULL,
-                ttl_earn REAL NOT NULL,
-                day_wght REAL NOT NULL
-            )
-        ''')
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS somm_scores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            score_date TEXT NOT NULL,
+            sales_associate TEXT NOT NULL,
+            daily_score REAL NOT NULL
+        )
+        """)
         
-        # Create somm_scores table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS somm_scores (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                score_date DATE NOT NULL,
-                sales_associate TEXT NOT NULL,
-                daily_score REAL NOT NULL,
-                UNIQUE(score_date, sales_associate)
-            )
-        ''')
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            UNIQUE(key)
+        )
+        """)
         
-        # Commit changes
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ref_table (
+            date TEXT,
+            dow INTEGER,
+            mon INTEGER,
+            fisc_mon INTEGER,
+            ttl_earn REAL,
+            day_wght REAL
+        )
+        """)
+        
+        # Add indexes for performance
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(order_paid_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_clubs_date ON clubs(club_signup_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_scores_date ON somm_scores(score_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_ref_date ON ref_table(date)")
+        
+        # Initialize default settings
+        cursor.execute("""
+        INSERT OR IGNORE INTO settings (key, value)
+        VALUES 
+            ('timezone', 'UTC'),
+            ('year_type', 'calendar'),
+            ('active_associates', '[]'),
+            ('hidden_associates', '[]'),
+            ('fiscal_year_start', '07-01'),
+            ('fiscal_year_end', '06-30'),
+            ('dark_mode', 'true'),
+            ('show_tip_badges', 'true')
+        """)
+        
+        # Commit all changes
         conn.commit()
         logger.info(f"Database initialized successfully at {db_path}")
+        return True
         
+    except sqlite3.Error as e:
+        logger.error(f"SQLite error: {e}")
+        if conn:
+            conn.rollback()
+        return False
     except Exception as e:
-        logger.error(f"Error initializing database: {str(e)}")
-        raise
+        logger.error(f"Error initializing database: {e}")
+        if conn:
+            conn.rollback()
+        return False
     finally:
         if conn:
             conn.close()
 
 if __name__ == "__main__":
     db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
-    init_database(db_path) 
+    success = init_database(db_path)
+    if not success:
+        logger.error("Failed to initialize database")
+        exit(1) 

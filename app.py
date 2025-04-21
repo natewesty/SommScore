@@ -97,27 +97,29 @@ def get_db_connection():
     return conn
 
 def init_settings_table():
-    """Initialize the settings table with default values."""
     conn = get_db_connection()
-    try:
-        # Initialize default settings
-        conn.execute("""
-            INSERT OR REPLACE INTO settings (key, value)
-            VALUES 
-                ('timezone', 'UTC'),
-                ('year_type', 'calendar'),
-                ('active_associates', '[]'),
-                ('hidden_associates', '[]'),
-                ('fiscal_year_start', '07-01'),
-                ('fiscal_year_end', '06-30'),
-                ('dark_mode', 'true'),
-                ('show_tip_badges', 'true'),
-                ('last_order_update', '2024-01-01'),
-                ('last_club_update', '2024-01-01')
-        """)
-        conn.commit()
-    finally:
-        conn.close()
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    ''')
+    
+    # Add default settings
+    conn.execute('''
+        INSERT OR IGNORE INTO settings (key, value) 
+        VALUES 
+            ('year_type', 'calendar'),
+            ('active_associates', '[]'),
+            ('hidden_associates', '[]'),
+            ('fiscal_year_start', '07-01'),
+            ('fiscal_year_end', '06-30'),
+            ('dark_mode', 'true'),
+            ('show_tip_badges', 'true'),
+            ('timezone', 'UTC')
+    ''')
+    conn.commit()
+    conn.close()
 
 def get_all_associates():
     conn = get_db_connection()
@@ -206,8 +208,6 @@ def update_fiscal_year_if_needed():
 
 def is_initialized():
     """Check if the application has been initialized with start dates"""
-    if DEMO_MODE:
-        return True  # Always return True in demo mode
     conn = get_db_connection()
     result = conn.execute('''
         SELECT COUNT(*) as count 
@@ -401,7 +401,6 @@ def process_setup(year_type, start_date, timezone, progress_dict):
         
         # Initialize the database
         db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
         init_database(db_path)
         
         # Create a single database connection for all operations
@@ -1654,25 +1653,10 @@ def manual_update():
         return jsonify({'error': str(e)}), 500
 
 # Initialize settings table and recalculate scores when app starts
-db_path = os.getenv('DB_PATH', os.path.join('data', 'commerce7.db'))
-os.makedirs(os.path.dirname(db_path), exist_ok=True)  # Create data directory if it doesn't exist
-
-# Initialize database first
-init_database(db_path)
-
-# Initialize settings table
 init_settings_table()
-
-# Initialize demo mode if enabled
-if os.environ.get('DEMO_MODE') == 'true':
-    try:
-        # Initialize demo data
-        generate_fake_data()
-        # Initialize settings for demo mode
-        init_settings_table()
-    except Exception as e:
-        print(f"Error initializing demo mode: {e}")
-        # Continue with empty database if demo initialization fails
+if DEMO_MODE:
+    print("Running in demo mode - generating fake data...")
+    generate_fake_data()
 elif is_initialized():
     recalculate_scores()
     init_scheduler()  # Start the scheduler with timezone support
