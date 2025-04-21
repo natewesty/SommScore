@@ -28,6 +28,9 @@ scheduler_thread = None
 # Check if we're in demo mode
 DEMO_MODE = os.getenv('DEMO_MODE', 'false').lower() == 'true'
 
+# Add global initialization status
+initialization_complete = False
+
 def run_scheduler():
     """Run the scheduler in a background thread."""
     while True:
@@ -524,6 +527,8 @@ def process_setup(year_type, start_date, timezone, progress_dict):
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
+    if not initialization_complete:
+        return render_template('initializing.html'), 503
     conn = get_db_connection()
     
     if request.method == 'POST':
@@ -762,6 +767,8 @@ def team_setup():
 
 @app.route('/')
 def index():
+    if not initialization_complete:
+        return render_template('initializing.html'), 503
     # Check if active associates are set up
     active_associates = get_active_associates()
     if not active_associates:
@@ -1342,6 +1349,8 @@ def help():
 
 @app.route('/trends')
 def trends():
+    if not initialization_complete:
+        return render_template('initializing.html'), 503
     active_associates = get_active_associates()
     if not active_associates:
         return redirect(url_for('settings'))
@@ -1617,10 +1626,15 @@ def manual_update():
 init_settings_table()
 if DEMO_MODE:
     print("Running in demo mode - generating fake data...")
-    generate_fake_data()
+    if not generate_fake_data():
+        print("Error: Failed to generate fake data. Exiting...")
+        exit(1)
+    print("Fake data generation complete!")
 elif is_initialized():
     recalculate_scores()
     init_scheduler()  # Start the scheduler with timezone support
+
+initialization_complete = True
 
 if __name__ == '__main__':
     app.run(debug=True) 
